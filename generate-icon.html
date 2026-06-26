@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate Vyaya.vg Icon</title></head>
+<body style="background:#111;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif">
+<div style="text-align:center">
+  <canvas id="c" width="512" height="512" style="border-radius:112px;width:200px;height:200px;display:block;margin:0 auto 20px"></canvas>
+  <button id="btn" style="background:#e8c547;color:#0a0a0f;border:none;padding:12px 28px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer">
+    Download apple-touch-icon.png
+  </button>
+  <p style="color:#888;font-size:12px;margin-top:12px">Then commit it to your repo.</p>
+</div>
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+const S = 512;
+
+// Background
+const bgGrad = ctx.createRadialGradient(S*.5, S*.35, 0, S*.5, S*.35, S*.65);
+bgGrad.addColorStop(0, '#1a1a24');
+bgGrad.addColorStop(1, '#0a0a0f');
+roundRect(ctx, 0, 0, S, S, 112, bgGrad);
+
+// Glow
+const glowGrad = ctx.createRadialGradient(S*.5, S*.43, 0, S*.5, S*.43, S*.5);
+glowGrad.addColorStop(0, 'rgba(232,197,71,0.22)');
+glowGrad.addColorStop(1, 'rgba(232,197,71,0)');
+ctx.fillStyle = glowGrad;
+ctx.beginPath();
+ctx.ellipse(S*.5, S*.43, S*.39, S*.31, 0, 0, Math.PI*2);
+ctx.fill();
+
+// Border
+roundRect(ctx, 1, 1, S-2, S-2, 111, null, 'rgba(232,197,71,0.15)', 2);
+
+// ₹ symbol
+const goldGrad = ctx.createLinearGradient(S*.2, S*.2, S*.8, S*.8);
+goldGrad.addColorStop(0, '#f5d76e');
+goldGrad.addColorStop(1, '#c9a227');
+ctx.fillStyle = goldGrad;
+ctx.font = '900 290px Arial';
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.globalAlpha = 0.95;
+ctx.fillText('₹', S*.5, S*.52);
+ctx.globalAlpha = 1;
+
+// .vg signature
+ctx.fillStyle = 'rgba(232,197,71,0.55)';
+ctx.font = '700 70px Arial';
+ctx.textAlign = 'center';
+ctx.fillText('.vg', S*.74, S*.875);
+
+// Accent dots
+ctx.fillStyle = 'rgba(232,197,71,0.35)';
+ctx.beginPath(); ctx.arc(S*.29, S*.17, 6, 0, Math.PI*2); ctx.fill();
+ctx.fillStyle = 'rgba(232,197,71,0.2)';
+ctx.beginPath(); ctx.arc(S*.32, S*.17, 4, 0, Math.PI*2); ctx.fill();
+
+function roundRect(ctx, x, y, w, h, r, fill, stroke, sw) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y); ctx.arcTo(x+w, y, x+w, y+r, r);
+  ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+  ctx.lineTo(x+r, y+h); ctx.arcTo(x, y+h, x, y+h-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
+  ctx.closePath();
+  if(fill){ ctx.fillStyle=fill; ctx.fill(); }
+  if(stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=sw||1; ctx.stroke(); }
+}
+
+document.getElementById('btn').onclick = () => {
+  // Export at 180x180 for apple-touch-icon
+  const out = document.createElement('canvas');
+  out.width = 180; out.height = 180;
+  out.getContext('2d').drawImage(c, 0, 0, 180, 180);
+  const a = document.createElement('a');
+  a.download = 'apple-touch-icon.png';
+  a.href = out.toDataURL('image/png');
+  a.click();
+
+  // Also export 192x192 and 512x512
+  [192, 512].forEach(sz => {
+    const o2 = document.createElement('canvas');
+    o2.width = sz; o2.height = sz;
+    o2.getContext('2d').drawImage(c, 0, 0, sz, sz);
+    const a2 = document.createElement('a');
+    a2.download = `icon-${sz}.png`;
+    a2.href = o2.toDataURL('image/png');
+    setTimeout(() => a2.click(), sz === 192 ? 300 : 600);
+  });
+};
+</script>
+</body>
+</html>
