@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en" style="color-scheme:dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vyaya.vg">
+<meta name="theme-color" content="#080810">
+<meta name="color-scheme" content="dark">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<title>Vyaya.vg</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- DESKTOP SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">Vyaya<span class="sidebar-logo-dot">.</span>vg</div>
+  <div class="sidebar-sync">
+    <span class="sync-dot" id="syncDotSidebar"></span>
+    <span id="syncLblSidebar">local</span>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="sidebar-ni on" data-view="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button class="sidebar-ni" data-view="Analytics">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Analytics
+    </button>
+    <button class="sidebar-ni" data-view="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </button>
+  </nav>
+  <button class="sidebar-add" id="sidebarAddBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Add Expense
+  </button>
+</aside>
+
+<!-- ADD EXPENSE SHEET -->
+<div class="overlay" id="addOverlay">
+  <div class="sheet" id="addSheet">
+    <div class="sheet-drag"></div>
+    <div class="sheet-header">
+      <div class="sheet-title" id="addTitle"><em>Add</em> Expense</div>
+      <button class="sheet-close" id="closeAddBtn">✕</button>
+    </div>
+
+    <!-- Amount + Currency -->
+    <div class="field">
+      <div class="amt-wrap">
+        <span class="amt-symbol" id="amtSymbol">₹</span>
+        <input class="amt-input" id="inAmt" type="number" inputmode="decimal" placeholder="0" min="0" step="0.01">
+        <select class="currency-select" id="currencySelect" title="Currency"></select>
+      </div>
+    </div>
+
+    <!-- Category -->
+    <div class="field">
+      <label class="field-label">Category</label>
+      <div class="grid4" id="catGrid"></div>
+      <div class="cat-hint" id="catHint"></div>
+    </div>
+
+    <!-- Note (natural language) -->
+    <div class="field">
+      <label class="field-label">Note <span class="field-hint">or type "paid 450 for lunch"</span></label>
+      <input class="txt-input" id="inNote" type="text" placeholder="What was this for?" autocomplete="off">
+    </div>
+
+    <!-- Tags -->
+    <div class="field">
+      <label class="field-label">Tags <span class="field-hint">e.g. #work #trip-goa</span></label>
+      <input class="txt-input" id="inTags" type="text" placeholder="#tag1 #tag2" autocomplete="off">
+    </div>
+
+    <!-- Date & Time -->
+    <div class="field">
+      <label class="field-label">Date &amp; Time</label>
+      <div class="date-row">
+        <input class="txt-input" id="inDate" type="date">
+        <input class="txt-input" id="inTime" type="time">
+      </div>
+    </div>
+
+    <!-- Payment Mode -->
+    <div class="field">
+      <label class="field-label">Payment Mode</label>
+      <div class="grid3" id="payGrid"></div>
+    </div>
+
+    <!-- Location -->
+    <div class="field">
+      <label class="field-label">Location <span class="field-hint">optional</span></label>
+      <div class="location-row">
+        <input class="txt-input" id="inLocation" type="text" placeholder="e.g. Koramangala, Bangalore" autocomplete="off">
+        <button class="location-btn" id="locationBtn" title="Detect location">📍</button>
+      </div>
+    </div>
+
+    <!-- Split -->
+    <div class="field" id="splitField">
+      <label class="field-label">Split between <span id="splitCount">1</span> people</label>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <button class="settle-btn" id="splitMinus">−</button>
+        <span class="settle-count" id="splitVal">1</span>
+        <button class="settle-btn" id="splitPlus">+</button>
+        <span style="font-size:11px;color:var(--m2);flex:1">Your share: <strong id="splitShare">₹0</strong></span>
+      </div>
+    </div>
+
+    <!-- Recurring toggle -->
+    <div class="field">
+      <div class="recurring-row">
+        <div>
+          <div class="field-label" style="margin:0">Recurring Monthly</div>
+          <div style="font-size:10px;color:var(--m2);margin-top:2px">Remind me to log this every month</div>
+        </div>
+        <div class="toggle" id="recurringToggle"></div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-cancel" id="addCancel" onclick="closeAdd()">Cancel</button>
+      <button class="btn btn-go" id="saveBtn">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- END OF DAY MODAL -->
+<div class="overlay" id="eodModal">
+  <div class="sheet eod-sheet">
+    <div class="sheet-drag"></div>
+    <div class="eod-header">
+      <div class="eod-title">🌙 End of Day</div>
+      <button class="sheet-close" id="eodDismiss">✕</button>
+    </div>
+    <div class="eod-summary" id="eodSummary">0 transactions · ₹0</div>
+    <div class="eod-question">How do you feel about today's spending?</div>
+    <div class="mood-row">
+      <button class="mood-btn" data-mood="1" title="Great">😊</button>
+      <button class="mood-btn" data-mood="2" title="Okay">😐</button>
+      <button class="mood-btn" data-mood="3" title="Overspent">😬</button>
+    </div>
+    <div style="font-size:10px;color:var(--m2);text-align:center;margin-top:8px">Your mood is stored locally, never shared</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- APP -->
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div>
+      <div class="logo">Vyaya<span class="logo-dot">.</span>vg</div>
+      <div class="logo-sub">
+        <span class="sync-dot" id="syncDot"></span>
+        <span id="syncLbl">local</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="add-btn" id="addBtn">+</button>
+    </div>
+  </div>
+
+  <!-- HOME VIEW -->
+  <div class="view on" id="viewHome">
+
+    <!-- INSTALL BANNER -->
+    <div class="install-banner" id="installBanner" style="display:none">
+      <div class="ib-text"><strong>Install App</strong><span>Add to home screen for offline use</span></div>
+      <button class="ib-btn" id="installBtn">Install</button>
+      <button class="ib-x" id="dismissInstall">✕</button>
+    </div>
+
+    <!-- RECURRING REMINDER BANNER -->
+    <div class="recurring-banner" id="recurringBanner" style="display:none">
+      <span class="recurring-banner-ico">🔁</span>
+      <span class="recurring-banner-text" id="recurringBannerText"></span>
+      <button class="recurring-banner-btn" id="recurringBannerBtn">Log Now</button>
+    </div>
+
+    <!-- HERO CARD -->
+    <div class="hero-wrap">
+      <div class="hero-card">
+        <div class="hero-period" id="heroPeriod">THIS MONTH</div>
+        <div class="hero-amt"><span class="sym">₹</span><span id="heroAmt">0</span></div>
+        <div class="hero-meta">
+          <span class="hero-badge badge-eq" id="heroBadge">—</span>
+          <span class="hero-badge-lbl" id="heroBadgeLbl">vs last month</span>
+        </div>
+        <div class="hero-stats">
+          <div class="hs"><div class="hs-lbl">Txns</div><div class="hs-val" id="heroTxns">0</div></div>
+          <div class="hs"><div class="hs-lbl">Daily Avg</div><div class="hs-val r" id="heroAvg">₹0</div></div>
+          <div class="hs"><div class="hs-lbl">Biggest</div><div class="hs-val r" id="heroBig">₹0</div></div>
+        </div>
+        <div class="hero-owed" id="heroOwed">
+          <div class="hero-owed-l">
+            <div>
+              <div class="hero-owed-lbl">💜 Splits Owed</div>
+              <div class="hero-owed-sub" id="heroOwedSub">0 pending</div>
+            </div>
+          </div>
+          <div class="hero-owed-amt" id="heroOwedAmt">₹0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SMART INSIGHTS -->
+    <div class="insights-wrap" id="insightsWrap">
+      <div class="insights-row" id="insightsRow"></div>
+    </div>
+
+    <!-- PERIOD STRIP -->
+    <div class="pstrip">
+      <button class="ps-btn on" data-p="today">Today</button>
+      <button class="ps-btn" data-p="week">Week</button>
+      <button class="ps-btn" data-p="month">Month</button>
+      <button class="ps-btn" data-p="all">All</button>
+    </div>
+
+    <!-- SEARCH -->
+    <div class="search-wrap" id="searchWrap">
+      <span class="search-ico">🔍</span>
+      <input class="search-inp" id="searchInput" placeholder="Search · >500 food · #work · jun · upi" autocomplete="off">
+      <button class="search-clr" id="searchClr" onclick="document.getElementById('searchInput').value='';searchQ='';render()">✕</button>
+    </div>
+    <div class="search-hint" id="searchHint" style="display:none">
+      Try: <code>&gt;500</code> · <code>500-2000</code> · <code>#work</code> · <code>jun</code> · <code>upi</code> · <code>last month</code>
+    </div>
+
+    <!-- TRANSACTIONS -->
+    <div class="sec">
+      <div class="sec-hd">
+        <span class="sec-ttl" id="txTitle">Recent</span>
+        <button class="dl-btn" id="exportCsvBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+      </div>
+      <div class="tx-list" id="txList"></div>
+    </div>
+
+  </div><!-- /viewHome -->
+
+  <!-- ANALYTICS VIEW -->
+  <div class="view" id="viewAnalytics">
+    <div style="padding:16px 18px 8px">
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:900;letter-spacing:-.5px">Analytics</div>
+    </div>
+    <div class="a-tabs">
+      <button class="a-tab on" data-at="overview">Overview</button>
+      <button class="a-tab" data-at="categories">Categories</button>
+      <button class="a-tab" data-at="trends">Trends</button>
+      <button class="a-tab" data-at="year">Year</button>
+    </div>
+    <div class="month-nav">
+      <button class="month-nav-btn" id="mnPrev">‹</button>
+      <span class="month-nav-lbl" id="mnLbl"></span>
+      <button class="month-nav-btn" id="mnNext">›</button>
+    </div>
+    <div id="analyticsContent"></div>
+  </div>
+
+  <!-- SETTINGS VIEW -->
+  <div class="view" id="viewSettings">
+    <div style="padding:16px 18px 8px">
+      <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:900;letter-spacing:-.5px">Settings</div>
+    </div>
+
+    <!-- Monthly Budget -->
+    <div class="sec-hd" style="margin:0 16px 8px"><span class="sec-ttl">Monthly Budget</span></div>
+    <div class="budget-input-wrap">
+      <input class="budget-input" id="budgetInput" type="number" placeholder="e.g. 30000" min="0">
+      <button class="save-budget-btn" id="saveBudgetBtn">Set</button>
+    </div>
+
+    <!-- Category Budgets -->
+    <div class="sec-hd" style="margin:0 16px 8px"><span class="sec-ttl">Category Budgets</span></div>
+    <div class="settings-card">
+      <div id="catBudgetsList" style="padding:8px 16px"></div>
+    </div>
+
+    <!-- Savings Goals -->
+    <div class="sec-hd" style="margin:0 16px 8px"><span class="sec-ttl">🎯 Savings Goals</span></div>
+    <div class="settings-card">
+      <div id="goalsList" style="padding:8px 16px"></div>
+    </div>
+
+    <!-- Recurring Expenses -->
+    <div class="sec-hd" style="margin:0 16px 8px"><span class="sec-ttl">🔁 Recurring Expenses</span></div>
+    <div class="settings-card">
+      <div id="recurringList" style="padding:8px 16px"></div>
+    </div>
+
+    <!-- Google Sheets Sync -->
+    <div class="sec-hd" style="margin:0 16px 8px"><span class="sec-ttl">Google Sheets Sync</span></div>
+    <div class="url-input-wrap">
+      <input class="url-input" id="urlInput" placeholder="Paste your Web App URL here…">
+      <button class="save-url-btn" id="saveUrlBtn">Save &amp; Connect</button>
+    </div>
+    <div class="settings-card">
+      <div class="sc-row" id="syncBtn" style="cursor:pointer">
+        <span class="sc-ico">☁️</span>
+        <div class="sc-body"><div class="sc-name">Sync Now</div><div class="sc-sub" id="lastSyncLbl">Pull latest data from Sheets</div></div>
+        <span class="sc-r">›</span>
+      </div>
+      <div class="sc-row" id="importCsvBtn" style="cursor:pointer">
+        <span class="sc-ico">📂</span>
+        <div class="sc-body"><div class="sc-name">Import CSV</div><div class="sc-sub">Load from file (merges, no duplicates)</div></div>
+        <span class="sc-r">›</span>
+      </div>
+      <div class="sc-row" id="clearDataBtn" style="cursor:pointer">
+        <span class="sc-ico">🗑️</span>
+        <div class="sc-body"><div class="sc-name">Clear All Data</div><div class="sc-sub">Remove all local transactions</div></div>
+        <span class="sc-r">›</span>
+      </div>
+    </div>
+    <input type="file" id="csvInput" accept=".csv" style="display:none">
+
+    <div class="settings-card">
+      <div class="sc-row" style="cursor:default">
+        <span class="sc-ico">📱</span>
+        <div class="sc-body"><div class="sc-name">Vyaya.vg</div><div class="sc-sub">v4.0 · Smart Expense Tracker</div></div>
+      </div>
+      <div class="sc-row" style="cursor:default">
+        <span class="sc-ico">✨</span>
+        <div class="sc-body">
+          <div class="sc-name">Features</div>
+          <div class="sc-sub" style="line-height:1.6">Tags · Recurring · Multi-currency · Category budgets · Year-in-review · Smart search · Spend personality · Natural language add · Location tagging · Savings goals · Spend streaks · End-of-day mood</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- BOTTOM NAV -->
+<nav class="nav">
+  <button class="nav-btn on" data-view="Home">
+    <div class="ni-ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    Home
+  </button>
+  <button class="nav-btn" data-view="Analytics">
+    <div class="ni-ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    </div>
+    Analytics
+  </button>
+  <button class="nav-btn" data-view="Settings">
+    <div class="ni-ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </div>
+    Settings
+  </button>
+</nav>
+
+<script src="app.js"></script>
+</body>
+</html>
