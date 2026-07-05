@@ -1,4 +1,15 @@
 Date,Time,Category,Amount,Mode of Payment,Note,Split,Paid
+,,,,,,,
+2026-06-30,21:14,Food,373.00,UPI,California Burrito,3,1
+2026-06-30,17:21,Bills,699.00,UPI,Hotstar Premium,1,0
+2026-06-30,16:38,Travel & Commute,30.00,UPI,Metro Parking,1,0
+2026-06-29,12:36,Q-Commerce,647.00,Credit Card,BlinkIt,1,0
+2026-06-29,11:12,Travel & Commute,162.00,UPI,Ola Auto,1,0
+2026-06-27,15:28,Travel & Commute,107.00,UPI,Ola Auto,1,0
+2026-06-27,15:22,Travel & Commute,60.00,UPI,Metro Ticket,1,0
+2026-06-26,21:02,Food,791.00,UPI,MCD,1,0
+2026-06-26,20:05,Entertainment,299.00,UPI,Amazon Prime,1,0
+2026-06-26,16:42,Bills,800.00,UPI,Water Bill,1,0
 2026-06-26,5:05,Bills,"1,378.28",Credit Card,Airtel Black,1,0
 2026-06-25,16:05,Travel & Commute,30.00,UPI,Metro Parking,1,0
 2026-06-24,20:14,Q-Commerce,119.00,UPI,Blinkit,1,0

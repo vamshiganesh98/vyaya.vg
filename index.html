@@ -2,7 +2,7 @@
 <html lang="en" style="color-scheme:dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vyaya.vg">
@@ -11,10 +11,20 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <title>Vyaya.vg</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet"></noscript>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- LOADING SCREEN -->
+<div id="loadScreen">
+  <div class="load-logo">Vyaya<span class="load-dot">.</span>vg</div>
+  <div class="load-ring"></div>
+  <div class="load-sub" id="loadSub">Loading…</div>
+</div>
 
 <!-- DESKTOP SIDEBAR -->
 <aside class="sidebar" id="sidebar">
@@ -313,6 +323,10 @@
         <span class="sc-ico">☁️</span>
         <div class="sc-body"><div class="sc-name">Sync Now</div><div class="sc-sub" id="lastSyncLbl">Pull latest data from Sheets</div></div>
         <span class="sc-r">›</span>
+      </div>
+      <div class="sc-row" style="cursor:default;padding:8px 16px">
+        <span class="sc-ico">⚙️</span>
+        <div class="sc-body"><div class="sc-name">Settings Sync</div><div class="sc-sub" id="settingsSyncLbl">Budgets, goals &amp; recurring synced with sheet</div></div>
       </div>
       <div class="sc-row" id="importCsvBtn" style="cursor:pointer">
         <span class="sc-ico">📂</span>

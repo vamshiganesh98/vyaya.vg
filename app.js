@@ -28,7 +28,7 @@ const CURRENCIES = [
   {k:'GBP',s:'£'},{k:'JPY',s:'¥'},{k:'AED',s:'د.إ'},{k:'SGD',s:'S$'},
 ];
 
-// ── STATE ──────────────────────────────────────────────────
+const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzj6infQ9TjQVjTjZNlMllpkhRB_No5KqjSS2vo_0NdPARgzVnDGumK8_93PP79D66Y/exec';
 let txns = [];
 let editId = null;
 let period = 'today';
@@ -53,7 +53,7 @@ function load() {
   try {
     txns = JSON.parse(localStorage.getItem('vyaya_txns') || '[]');
     localStorage.setItem('vyaya_data_ver', '2');
-    sheetUrl = localStorage.getItem('vyaya_url') || '';
+    sheetUrl = localStorage.getItem('vyaya_url') || DEFAULT_SHEET_URL;
     budget = parseFloat(localStorage.getItem('vyaya_budget') || '0');
     catBudgets = JSON.parse(localStorage.getItem('vyaya_cat_budgets') || '{}');
     recurringList = JSON.parse(localStorage.getItem('vyaya_recurring') || '[]');
@@ -68,7 +68,13 @@ function load() {
     if (migrated) localStorage.setItem('vyaya_txns', JSON.stringify(txns));
   } catch(e) { txns = []; }
 }
-function save() { localStorage.setItem('vyaya_txns', JSON.stringify(txns)); }
+function save() {
+  try {
+    localStorage.setItem('vyaya_txns', JSON.stringify(txns));
+  } catch(e) {
+    if (e.name === 'QuotaExceededError') toast('Storage full — export your data first', 'err');
+  }
+}
 function saveSettings() {
   localStorage.setItem('vyaya_cat_budgets', JSON.stringify(catBudgets));
   localStorage.setItem('vyaya_recurring', JSON.stringify(recurringList));
@@ -135,11 +141,12 @@ function normDate(raw) {
     if (p[2].length === 4) return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
     if (p[0].length === 4) return p[0] + '-' + p[1].padStart(2,'0') + '-' + p[2].padStart(2,'0');
   }
-  const d = new Date(raw); if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+  const d = new Date(raw); if (!isNaN(d.getTime())) return d.toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'});
   return today();
 }
-function today() { return new Date().toISOString().slice(0,10); }
-function nowTime() { return new Date().toTimeString().slice(0,5); }
+function today() { return new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'}); }
+function nowTime() { return new Date().toLocaleTimeString('en-GB', {timeZone:'Asia/Kolkata', hour:'2-digit', minute:'2-digit', hour12:false}); }
+function istHour() { return parseInt(new Date().toLocaleTimeString('en-US', {timeZone:'Asia/Kolkata', hour:'numeric', hour12:false})); }
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function fmtDate(d) {
   if (!d) return ''; const parts = d.split('-');
@@ -247,7 +254,7 @@ function applySmartSearch(list, q) {
 // ── FILTER ─────────────────────────────────────────────────
 function filteredTxns() {
   const todayStr = today();
-  const weekAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
+  const weekAgo = new Date(Date.now() - 7*86400000).toLocaleDateString('en-CA', {timeZone:'Asia/Kolkata'});
   const curMon = currentMonthKey();
   let list = txns.slice();
   if (drillFilter) {
@@ -564,10 +571,24 @@ function settleAll(id) {
   t.paidCount = t.split - 1; save(); render(); if (sheetUrl) syncTxn('update', t);
 }
 function deleteTxn(id) {
-  const t = txns.find(x => x.id === id); if (!t) return;
-  if (!confirm('Delete this expense?')) return;
-  txns = txns.filter(x => x.id !== id); save(); render(); toast('Deleted', 'ok');
-  if (sheetUrl) syncTxn('delete', t);
+  const idx = txns.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const t = txns[idx];
+  txns.splice(idx, 1);
+  save(); render();
+  // Undo toast — restore within 5 seconds
+  const el = document.getElementById('toast');
+  el.innerHTML = 'Deleted · <span style="text-decoration:underline;cursor:pointer" id="undoDelBtn">Undo</span>';
+  el.className = 'toast on';
+  clearTimeout(el._t);
+  const doDelete = () => { if (sheetUrl) syncTxn('delete', t); };
+  let undone = false;
+  document.getElementById('undoDelBtn').onclick = () => {
+    undone = true; txns.splice(idx, 0, t); save(); render();
+    el.textContent = 'Restored'; el.className = 'toast on ok';
+    clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 1800);
+  };
+  el._t = setTimeout(() => { el.classList.remove('on'); if (!undone) doDelete(); }, 5000);
 }
 
 // ── ADD / EDIT SHEET ───────────────────────────────────────
@@ -690,7 +711,7 @@ async function saveExpense() {
     // Add to recurring list if toggled
     if (isRecurring && note) {
       const exists = recurringList.find(r => r.name.toLowerCase() === note.toLowerCase());
-      if (!exists) { recurringList.push({id:genId(), name:note, amount:finalAmt, category:cat, payment:pay}); saveSettings(); }
+      if (!exists) { recurringList.push({id:genId(), name:note, amount:finalAmt, category:cat, payment:pay}); saveSettings(); pushSettings(); }
     }
   }
   save(); closeAdd(); render(); renderRecurringBanner();
@@ -699,11 +720,24 @@ async function saveExpense() {
 // ── FX RATES ───────────────────────────────────────────────
 async function getFxRate(from, to) {
   const key = from + '_' + to;
+  // Check in-memory first, then localStorage cache
   if (fxRates[key] && fxRates[key].ts > Date.now() - 3600000) return fxRates[key].rate;
+  try {
+    const cached = JSON.parse(localStorage.getItem('vyaya_fx') || '{}');
+    if (cached[key] && cached[key].ts > Date.now() - 3600000) {
+      fxRates[key] = cached[key];
+      return cached[key].rate;
+    }
+  } catch(e) {}
   const res = await fetch('https://api.frankfurter.app/latest?from=' + from + '&to=' + to);
   const data = await res.json();
   const rate = data.rates[to];
   fxRates[key] = {rate, ts: Date.now()};
+  try {
+    const cached = JSON.parse(localStorage.getItem('vyaya_fx') || '{}');
+    cached[key] = {rate, ts: Date.now()};
+    localStorage.setItem('vyaya_fx', JSON.stringify(cached));
+  } catch(e) {}
   return rate;
 }
 
@@ -1016,7 +1050,7 @@ function renderCatBudgets() {
       const v = parseFloat(inp.value);
       if (v > 0) catBudgets[inp.dataset.cat] = v;
       else delete catBudgets[inp.dataset.cat];
-      saveSettings(); toast('Budget saved', 'ok');
+      saveSettings(); pushSettings(); toast('Budget saved', 'ok');
     };
   });
 }
@@ -1031,7 +1065,7 @@ function renderRecurringSettings() {
     '<button class="rec-del" data-rid="' + r.id + '">✕</button></div>'
   ).join('');
   el.querySelectorAll('.rec-del').forEach(b => {
-    b.onclick = () => { recurringList = recurringList.filter(r => r.id !== b.dataset.rid); saveSettings(); renderRecurringSettings(); toast('Removed', 'ok'); };
+    b.onclick = () => { recurringList = recurringList.filter(r => r.id !== b.dataset.rid); saveSettings(); pushSettings(); renderRecurringSettings(); toast('Removed', 'ok'); };
   });
 }
 
@@ -1047,32 +1081,53 @@ function renderGoalsSettings() {
       '<div class="goal-actions">' +
       '<button class="goal-add-btn" data-gid="' + g.id + '">+ Add</button>' +
       '<button class="rec-del" data-gid="' + g.id + '">✕</button></div></div>';
-  }).join('') + '<button class="save-url-btn" id="addGoalBtn" style="margin-top:8px">+ New Goal</button>';
+  }).join('') +
+  '<div class="goal-new-form" id="goalNewForm" style="display:none;margin-top:10px;display:none">' +
+    '<input class="txt-input" id="goalNameInput" placeholder="Goal name (e.g. Goa Trip)" style="margin-bottom:8px">' +
+    '<input class="txt-input" id="goalTargetInput" type="number" placeholder="Target amount (₹)" style="margin-bottom:8px" min="1">' +
+    '<div style="display:flex;gap:8px">' +
+      '<button class="save-url-btn" id="goalSaveBtn" style="flex:1;padding:10px">Add Goal</button>' +
+      '<button class="btn btn-cancel" id="goalCancelBtn" style="flex:0;padding:10px 14px">Cancel</button>' +
+    '</div>' +
+  '</div>' +
+  '<button class="save-url-btn" id="addGoalBtn" style="margin-top:8px">+ New Goal</button>';
+
   el.querySelectorAll('.goal-add-btn').forEach(b => {
     b.onclick = () => {
-      const amt = parseFloat(prompt('Add to savings (₹):'));
+      const amtStr = window.prompt ? prompt('Add to savings (₹):') : null;
+      const amt = amtStr !== null ? parseFloat(amtStr) : NaN;
       if (!amt || amt <= 0) return;
       const g = goals.find(x => x.id === b.dataset.gid);
-      if (g) { g.saved = (g.saved||0) + amt; saveSettings(); renderGoalsSettings(); toast('Saved +' + fmtAmt(amt), 'ok'); }
+      if (g) { g.saved = (g.saved||0) + amt; saveSettings(); pushSettings(); renderGoalsSettings(); toast('Saved +' + fmtAmt(amt), 'ok'); }
     };
   });
   el.querySelectorAll('.rec-del[data-gid]').forEach(b => {
-    b.onclick = () => { goals = goals.filter(g => g.id !== b.dataset.gid); saveSettings(); renderGoalsSettings(); };
+    b.onclick = () => { goals = goals.filter(g => g.id !== b.dataset.gid); saveSettings(); pushSettings(); renderGoalsSettings(); };
   });
+
   const addBtn = document.getElementById('addGoalBtn');
+  const form = document.getElementById('goalNewForm');
   if (addBtn) addBtn.onclick = () => {
-    const name = prompt('Goal name (e.g. Goa Trip):');
-    if (!name) return;
-    const target = parseFloat(prompt('Target amount (₹):'));
-    if (!target || target <= 0) return;
+    addBtn.style.display = 'none';
+    form.style.display = 'block';
+    document.getElementById('goalNameInput').focus();
+  };
+  const cancelBtn = document.getElementById('goalCancelBtn');
+  if (cancelBtn) cancelBtn.onclick = () => { form.style.display = 'none'; addBtn.style.display = 'block'; };
+  const saveBtn = document.getElementById('goalSaveBtn');
+  if (saveBtn) saveBtn.onclick = () => {
+    const name = (document.getElementById('goalNameInput').value || '').trim();
+    const target = parseFloat(document.getElementById('goalTargetInput').value);
+    if (!name) { toast('Enter a goal name', 'err'); return; }
+    if (!target || target <= 0) { toast('Enter a valid target amount', 'err'); return; }
     goals.push({id:genId(), name, target, saved:0});
-    saveSettings(); renderGoalsSettings(); toast('Goal added!', 'ok');
+    saveSettings(); pushSettings(); renderGoalsSettings(); toast('Goal added!', 'ok');
   };
 }
 
 // ── END OF DAY MODAL ───────────────────────────────────────
 function checkEndOfDay() {
-  const h = new Date().getHours();
+  const h = istHour();
   if (h < 21 || h >= 23) return;
   const todayStr = today();
   if (moodLog[todayStr] !== undefined) return;
@@ -1105,6 +1160,95 @@ async function syncTxn(action, t, oldKey) {
   } catch(e) { console.warn('Sync failed:', e); }
 }
 
+async function pushSettings() {
+  if (!sheetUrl) return;
+  try {
+    await fetch(sheetUrl, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'writeSettings',
+        settings: {
+          monthly_budget: budget,
+          cat_budgets: catBudgets,
+          goals: goals,
+          recurring: recurringList,
+        }
+      })
+    });
+  } catch(e) { console.warn('Settings push failed:', e); }
+}
+
+async function autoSync() {
+  if (!sheetUrl) return 'no-url';
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const [txnRes, settRes] = await Promise.all([
+      fetch(sheetUrl + '?action=read', {signal: ctrl.signal}),
+      fetch(sheetUrl + '?action=readSettings', {signal: ctrl.signal}),
+    ]);
+    clearTimeout(timeout);
+    const txnData = await txnRes.json();
+    if (txnData.error) throw new Error(txnData.error);
+    if ((txnData.rows || []).length > 0) {
+      const remote = txnData.rows.map(r => ({
+        id: genId(), date: normDate(r['Date']), time: r['Time'] || '00:00',
+        category: normCat(r['Category'] || 'Others'), amount: parseFloat(r['Amount']) || 0,
+        payment: r['Mode of Payment'] || 'UPI', note: r['Note'] || '',
+        split: parseInt(r['Split'] || '1') || 1, paidCount: parseInt(r['Paid'] || '0') || 0,
+        tags: parseTags(r['Note'] || ''), location: r['Location'] || '',
+      })).filter(r => r.amount > 0);
+      txns = remote; save(); render();
+    }
+    const settData = await settRes.json();
+    if (!settData.error && settData.settings) {
+      const s = settData.settings;
+      if (s.monthly_budget !== undefined) { budget = parseFloat(s.monthly_budget) || 0; localStorage.setItem('vyaya_budget', budget); }
+      if (s.cat_budgets) { catBudgets = s.cat_budgets; localStorage.setItem('vyaya_cat_budgets', JSON.stringify(catBudgets)); }
+      if (s.goals) { goals = s.goals; localStorage.setItem('vyaya_goals', JSON.stringify(goals)); }
+      if (s.recurring) { recurringList = s.recurring; localStorage.setItem('vyaya_recurring', JSON.stringify(recurringList)); }
+      renderSettings(); renderRecurringBanner();
+    }
+    updateSyncDot('ok');
+    return 'ok';
+  } catch(e) {
+    clearTimeout(timeout);
+    updateSyncDot('err');
+    return 'err';
+  }
+}
+
+function updateSyncDot(state) {
+  document.querySelectorAll('.sync-dot').forEach(d => { d.className = 'sync-dot ' + state; });
+  const lbl = document.getElementById('syncLbl');
+  const lbl2 = document.getElementById('syncLblSidebar');
+  if (state === 'ok') {
+    const t = new Date().toLocaleTimeString('en-US', {timeZone:'Asia/Kolkata', hour:'2-digit', minute:'2-digit'});
+    if (lbl) lbl.textContent = 'synced ' + t;
+    if (lbl2) lbl2.textContent = 'synced ' + t;
+  } else if (state === 'err') {
+    if (lbl) lbl.textContent = 'offline';
+    if (lbl2) lbl2.textContent = 'offline';
+  }
+}
+
+async function pullSettings() {
+  if (!sheetUrl) return;
+  try {
+    const res = await fetch(sheetUrl + '?action=readSettings');
+    const data = await res.json();
+    if (data.error || !data.settings) return;
+    const s = data.settings;
+    if (s.monthly_budget !== undefined) { budget = parseFloat(s.monthly_budget) || 0; localStorage.setItem('vyaya_budget', budget); }
+    if (s.cat_budgets) { catBudgets = s.cat_budgets; localStorage.setItem('vyaya_cat_budgets', JSON.stringify(catBudgets)); }
+    if (s.goals) { goals = s.goals; localStorage.setItem('vyaya_goals', JSON.stringify(goals)); }
+    if (s.recurring) { recurringList = s.recurring; localStorage.setItem('vyaya_recurring', JSON.stringify(recurringList)); }
+    const ts = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const lbl = document.getElementById('settingsSyncLbl');
+    if (lbl) lbl.textContent = 'Settings synced ' + ts;
+  } catch(e) { console.warn('Settings pull failed:', e); }
+}
+
 async function syncAll() {
   if (!sheetUrl) { toast('Set Sheet URL first', 'err'); return; }
   const btn = document.getElementById('syncBtn');
@@ -1125,6 +1269,8 @@ async function syncAll() {
       toast('Synced ' + remote.length + ' rows', 'ok');
     } else { toast('No data in sheet', 'info'); }
     render();
+    await pullSettings();
+    renderSettings();
   } catch(e) { toast('Sync failed: ' + e.message, 'err'); }
   finally { if (btn) { btn.disabled = false; btn.innerHTML = '☁️ Sync from Sheet'; } }
 }
@@ -1247,6 +1393,28 @@ function init() {
   document.getElementById('addOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeAdd(); });
   document.getElementById('closeAddBtn').onclick = closeAdd;
 
+  // Swipe-to-dismiss on the add sheet
+  const addSheet = document.getElementById('addSheet');
+  let swipeStartY = 0, swipeStartTime = 0, isSwiping = false;
+  addSheet.addEventListener('touchstart', e => {
+    if (!e.target.closest('.sheet-drag')) return;
+    swipeStartY = e.touches[0].clientY; swipeStartTime = Date.now(); isSwiping = true;
+    addSheet.style.transition = 'none';
+  }, {passive: true});
+  addSheet.addEventListener('touchmove', e => {
+    if (!isSwiping) return;
+    const dy = e.touches[0].clientY - swipeStartY;
+    if (dy > 0) addSheet.style.transform = 'translateY(' + dy + 'px)';
+  }, {passive: true});
+  addSheet.addEventListener('touchend', e => {
+    if (!isSwiping) return; isSwiping = false;
+    const dy = e.changedTouches[0].clientY - swipeStartY;
+    const vel = dy / (Date.now() - swipeStartTime);
+    addSheet.style.transition = '';
+    if (dy > 120 || vel > 0.5) { closeAdd(); addSheet.style.transform = ''; }
+    else { addSheet.style.transform = ''; }
+  }, {passive: true});
+
   // Amount input → update split share + natural language
   document.getElementById('inAmt').addEventListener('input', updateSplit);
 
@@ -1320,7 +1488,7 @@ function init() {
   document.getElementById('saveBudgetBtn').onclick = () => {
     budget = parseFloat(document.getElementById('budgetInput').value) || 0;
     localStorage.setItem('vyaya_budget', budget);
-    toast('Budget saved', 'ok'); render();
+    pushSettings(); toast('Budget saved', 'ok'); render();
   };
 
   // Settings: Sync
@@ -1344,6 +1512,8 @@ function init() {
       txns = []; save(); render(); toast('Data cleared', 'ok');
     }
   };
+
+  // Pull settings from sheet on init if URL is configured — handled in loading screen block below
 
   // Install banner
   window.addEventListener('beforeinstallprompt', e => {
@@ -1372,6 +1542,12 @@ function init() {
   render();
   renderRecurringBanner();
   showView('Home');
+
+  // Loading screen — show briefly then dismiss, sync runs in background
+  const loadScreen = document.getElementById('loadScreen');
+  const dismissLoad = () => { if (loadScreen) loadScreen.classList.add('hidden'); };
+  setTimeout(dismissLoad, 800);
+  if (sheetUrl) autoSync();
 
   // Auto-load historical CSV if no data
   autoLoadCSV();

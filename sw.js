@@ -1,17 +1,32 @@
-// This service worker exists only to unregister itself and nuke all caches.
-// Vyaya.vg never caches anything — data lives in localStorage.
-self.addEventListener('install', () => self.skipWaiting());
+const CACHE = 'vyaya-shell-v1';
+const SHELL = ['/', '/index.html', '/app.js', '/style.css', '/manifest.json', '/icon-192.png', '/icon-512.png'];
+
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+});
+
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
-      .then(() => self.clients.matchAll({ type: 'window' }))
-      .then(clients => {
-        clients.forEach(c => c.postMessage({ type: 'SW_CLEARED' }));
-        return self.registration.unregister();
-      })
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
-// Passthrough — never cache, never intercept
-self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+
+self.addEventListener('fetch', e => {
+  // Only cache-first for same-origin GET requests (app shell)
+  if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+  e.respondWith(
+    caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
+      // Cache any new same-origin resources we fetch
+      if (res.ok) {
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+      }
+      return res;
+    }))
+  );
+});
