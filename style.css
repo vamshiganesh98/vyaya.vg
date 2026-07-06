@@ -209,8 +209,15 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;back
 .cat-budget-input{background:var(--s2);border:1.5px solid var(--b);border-radius:10px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:12px;padding:5px 10px;width:90px;outline:none;text-align:right}
 .cat-budget-input:focus{border-color:var(--gold)}
 
-/* Recurring settings rows */
-.rec-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--b)}
+/* Recurring frequency controls */
+.rec-freq-row{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+.rec-freq-sel{background:var(--s2);border:1px solid var(--b2);border-radius:8px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;cursor:pointer;outline:none}
+.rec-freq-sel:focus{border-color:var(--gold)}
+.rec-freq-n{background:var(--s2);border:1px solid var(--b2);border-radius:8px;color:var(--tx);font-family:'DM Sans',sans-serif;font-size:11px;padding:4px 8px;outline:none}
+.rec-freq-n:focus{border-color:var(--gold)}
+.rec-dow-row{display:flex;gap:3px;flex-wrap:wrap}
+.rec-dow-btn{background:var(--s2);border:1px solid var(--b2);border-radius:6px;color:var(--m2);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;padding:3px 6px;cursor:pointer;transition:all .15s}
+.rec-dow-btn.on{background:rgba(232,197,71,.15);border-color:var(--gold);color:var(--gold)}display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--b)}
 .rec-row:last-child{border-bottom:none}
 .rec-ico{font-size:16px;flex-shrink:0}
 .rec-body{flex:1;min-width:0}

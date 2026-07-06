@@ -459,19 +459,83 @@ function renderInsights() {
   document.getElementById('insightsWrap').style.display = cards.length ? '' : 'none';
 }
 
+// ── RECURRING HELPERS ──────────────────────────────────────
+function recurringFreqLabel(r) {
+  if (r.freq === 'daily') return 'Every day';
+  if (r.freq === 'weekly') {
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const on = (r.freqDays || []).map(d => days[d]).join(', ');
+    return 'Weekly' + (on ? ' · ' + on : '');
+  }
+  if (r.freq === 'monthly') {
+    return 'Monthly' + (r.freqDate ? ' · ' + r.freqDate + (r.freqDate === 1 ? 'st' : r.freqDate === 2 ? 'nd' : r.freqDate === 3 ? 'rd' : 'th') : '');
+  }
+  if (r.freq === 'interval') return 'Every ' + (r.freqN || 30) + ' days';
+  return 'Monthly';
+}
+
+function isRecurringDue(r) {
+  if (!r.name || !r.amount) return false;
+  const todayStr = today();
+  const todayDate = new Date(todayStr + 'T00:00:00');
+  const lastStr = r.lastLogged || null;
+
+  // Check if already logged today
+  const loggedToday = txns.some(t =>
+    t.date === todayStr &&
+    t.note && t.note.toLowerCase().includes(r.name.toLowerCase()) &&
+    Math.abs(t.amount - r.amount) < 1
+  );
+  if (loggedToday) return false;
+
+  const freq = r.freq || 'monthly';
+
+  if (freq === 'daily') return true;
+
+  if (freq === 'weekly') {
+    const dow = todayDate.getDay();
+    const days = r.freqDays && r.freqDays.length ? r.freqDays : [1]; // default Monday
+    return days.includes(dow);
+  }
+
+  if (freq === 'monthly') {
+    const targetDate = r.freqDate || 1;
+    const dom = parseInt(todayStr.split('-')[2]);
+    // Due on the target date, or if past it and not logged this month
+    const curMon = currentMonthKey();
+    const loggedThisMonth = txns.some(t =>
+      monthKey(t.date) === curMon &&
+      t.note && t.note.toLowerCase().includes(r.name.toLowerCase()) &&
+      Math.abs(t.amount - r.amount) < 1
+    );
+    return !loggedThisMonth && dom >= targetDate;
+  }
+
+  if (freq === 'interval') {
+    if (!lastStr) return true;
+    const last = new Date(lastStr + 'T00:00:00');
+    const diffDays = Math.floor((todayDate - last) / 86400000);
+    return diffDays >= (r.freqN || 30);
+  }
+
+  // fallback: monthly
+  const curMon = currentMonthKey();
+  return !txns.some(t =>
+    monthKey(t.date) === curMon &&
+    t.note && t.note.toLowerCase().includes(r.name.toLowerCase()) &&
+    Math.abs(t.amount - r.amount) < 1
+  );
+}
+
 // ── RECURRING REMINDER ─────────────────────────────────────
 function renderRecurringBanner() {
   const banner = document.getElementById('recurringBanner');
   if (!banner) return;
-  const curMon = currentMonthKey();
-  const due = recurringList.filter(r => {
-    if (!r.name || !r.amount) return false;
-    const alreadyLogged = txns.some(t => monthKey(t.date) === curMon && t.note && t.note.toLowerCase().includes(r.name.toLowerCase()) && Math.abs(t.amount - r.amount) < 1);
-    return !alreadyLogged;
-  });
+  const due = recurringList.filter(isRecurringDue);
   if (due.length === 0) { banner.style.display = 'none'; return; }
   banner.style.display = 'flex';
-  document.getElementById('recurringBannerText').textContent = due.length + ' recurring expense' + (due.length>1?'s':'') + ' due: ' + due.map(r=>r.name).join(', ');
+  document.getElementById('recurringBannerText').textContent =
+    due.length + ' recurring expense' + (due.length > 1 ? 's' : '') + ' due: ' + due.map(r => r.name).join(', ');
   document.getElementById('recurringBannerBtn').onclick = () => {
     const r = due[0];
     openAdd();
@@ -482,7 +546,8 @@ function renderRecurringBanner() {
       selectChip('payGrid', r.payment || 'UPI');
       updateSplit();
       const hint = document.getElementById('catHint');
-      hint.textContent = 'Recurring: ' + r.name; hint.className = 'cat-hint on';
+      hint.textContent = 'Recurring: ' + r.name + ' · ' + recurringFreqLabel(r);
+      hint.className = 'cat-hint on';
     }, 100);
   };
 }
@@ -708,10 +773,15 @@ async function saveExpense() {
     const t = {id:genId(), amount:finalAmt, originalAmount, originalCurrency, category:cat, payment:pay, note, date, time, split:splitN, paidCount:0, tags:allTags, location, recurring:isRecurring};
     txns.unshift(t); toast('Saved', 'ok');
     if (sheetUrl) syncTxn('append', t);
-    // Add to recurring list if toggled
+    // Add to recurring list if toggled, and update lastLogged if it exists
     if (isRecurring && note) {
-      const exists = recurringList.find(r => r.name.toLowerCase() === note.toLowerCase());
-      if (!exists) { recurringList.push({id:genId(), name:note, amount:finalAmt, category:cat, payment:pay}); saveSettings(); pushSettings(); }
+      const existing = recurringList.find(r => r.name.toLowerCase() === note.toLowerCase());
+      if (existing) {
+        existing.lastLogged = date;
+      } else {
+        recurringList.push({id:genId(), name:note, amount:finalAmt, category:cat, payment:pay, freq:'monthly', freqDate:1, lastLogged:date});
+      }
+      saveSettings(); pushSettings();
     }
   }
   save(); closeAdd(); render(); renderRecurringBanner();
@@ -1058,12 +1128,66 @@ function renderCatBudgets() {
 function renderRecurringSettings() {
   const el = document.getElementById('recurringList');
   if (!el) return;
-  if (!recurringList.length) { el.innerHTML = '<div style="font-size:12px;color:var(--m2);padding:8px 0">No recurring expenses yet. Toggle "Recurring" when adding an expense.</div>'; return; }
-  el.innerHTML = recurringList.map(r =>
-    '<div class="rec-row"><span class="rec-ico">' + catInfo(r.category||'Bills').i + '</span>' +
-    '<div class="rec-body"><div class="rec-name">' + r.name + '</div><div class="rec-sub">' + fmtAmt(r.amount) + ' · ' + (r.category||'Bills') + '</div></div>' +
-    '<button class="rec-del" data-rid="' + r.id + '">✕</button></div>'
-  ).join('');
+  if (!recurringList.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--m2);padding:8px 0">No recurring expenses yet. Toggle "Recurring" when adding an expense.</div>';
+    return;
+  }
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  el.innerHTML = recurringList.map(r => {
+    const freq = r.freq || 'monthly';
+    return '<div class="rec-row" data-rid="' + r.id + '">' +
+      '<span class="rec-ico">' + catInfo(r.category||'Bills').i + '</span>' +
+      '<div class="rec-body">' +
+        '<div class="rec-name">' + r.name + '</div>' +
+        '<div class="rec-sub">' + fmtAmt(r.amount) + ' · ' + (r.category||'Bills') + '</div>' +
+        '<div class="rec-freq-row">' +
+          '<select class="rec-freq-sel" data-rid="' + r.id + '">' +
+            '<option value="daily"' + (freq==='daily'?' selected':'') + '>Every day</option>' +
+            '<option value="weekly"' + (freq==='weekly'?' selected':'') + '>Weekly</option>' +
+            '<option value="monthly"' + (freq==='monthly'?' selected':'') + '>Monthly</option>' +
+            '<option value="interval"' + (freq==='interval'?' selected':'') + '>Every N days</option>' +
+          '</select>' +
+          // Weekly day picker
+          (freq==='weekly' ? '<div class="rec-dow-row">' + DOW.map((d,i) =>
+            '<button class="rec-dow-btn' + ((r.freqDays||[]).includes(i)?' on':'') + '" data-rid="' + r.id + '" data-dow="' + i + '">' + d + '</button>'
+          ).join('') + '</div>' : '') +
+          // Monthly date picker
+          (freq==='monthly' ? '<input class="rec-freq-n" type="number" min="1" max="28" value="' + (r.freqDate||1) + '" data-rid="' + r.id + '" data-field="freqDate" placeholder="Day of month" style="width:90px">' : '') +
+          // Interval N picker
+          (freq==='interval' ? '<input class="rec-freq-n" type="number" min="1" max="365" value="' + (r.freqN||30) + '" data-rid="' + r.id + '" data-field="freqN" placeholder="Days" style="width:70px"><span style="font-size:10px;color:var(--m2);margin-left:4px">days</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="rec-del" data-rid="' + r.id + '">✕</button>' +
+    '</div>';
+  }).join('');
+
+  // Freq select change
+  el.querySelectorAll('.rec-freq-sel').forEach(sel => {
+    sel.onchange = () => {
+      const r = recurringList.find(x => x.id === sel.dataset.rid);
+      if (r) { r.freq = sel.value; saveSettings(); pushSettings(); renderRecurringSettings(); }
+    };
+  });
+  // DOW buttons
+  el.querySelectorAll('.rec-dow-btn').forEach(btn => {
+    btn.onclick = () => {
+      const r = recurringList.find(x => x.id === btn.dataset.rid);
+      if (!r) return;
+      if (!r.freqDays) r.freqDays = [];
+      const d = parseInt(btn.dataset.dow);
+      if (r.freqDays.includes(d)) r.freqDays = r.freqDays.filter(x => x !== d);
+      else r.freqDays.push(d);
+      saveSettings(); pushSettings(); renderRecurringSettings();
+    };
+  });
+  // N inputs (freqDate / freqN)
+  el.querySelectorAll('.rec-freq-n').forEach(inp => {
+    inp.onchange = () => {
+      const r = recurringList.find(x => x.id === inp.dataset.rid);
+      if (r) { r[inp.dataset.field] = parseInt(inp.value) || (inp.dataset.field === 'freqDate' ? 1 : 30); saveSettings(); pushSettings(); }
+    };
+  });
+  // Delete
   el.querySelectorAll('.rec-del').forEach(b => {
     b.onclick = () => { recurringList = recurringList.filter(r => r.id !== b.dataset.rid); saveSettings(); pushSettings(); renderRecurringSettings(); toast('Removed', 'ok'); };
   });
