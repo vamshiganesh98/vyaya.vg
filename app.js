@@ -609,6 +609,8 @@ function txnHTML(t) {
   html += '<div class="tx-amt">' + fmtAmt(t.amount) + '</div>';
   if (isSplit) html += '<div style="font-size:10px;color:var(--m2)">Your: ' + fmtAmt(share) + '</div>';
   html += '<div class="tx-actions">';
+  const isRec = recurringList.some(r => r.name && t.note && r.name.toLowerCase() === t.note.replace(/#[\w-]+/g,'').trim().toLowerCase());
+  html += '<button class="tx-btn rec-mark' + (isRec ? ' on' : '') + '" data-rec="' + t.id + '" title="' + (isRec ? 'Already recurring' : 'Mark as recurring') + '">' + (isRec ? '🔁' : '↻') + '</button>';
   html += '<button class="tx-btn" data-edit="' + t.id + '">✏️</button>';
   html += '<button class="tx-btn del" data-del="' + t.id + '">🗑️</button>';
   html += '</div></div></div>';
@@ -618,12 +620,100 @@ function txnHTML(t) {
 function attachTxnEvents() {
   document.querySelectorAll('[data-edit]').forEach(b => { b.onclick = e => { e.stopPropagation(); openEdit(b.dataset.edit); }; });
   document.querySelectorAll('[data-del]').forEach(b => { b.onclick = e => { e.stopPropagation(); deleteTxn(b.dataset.del); }; });
+  document.querySelectorAll('[data-rec]').forEach(b => { b.onclick = e => { e.stopPropagation(); openRecurringModal(b.dataset.rec); }; });
   document.querySelectorAll('[data-settle-inc]').forEach(b => { b.onclick = e => { e.stopPropagation(); settle(b.dataset.settleInc, 1); }; });
   document.querySelectorAll('[data-settle-dec]').forEach(b => { b.onclick = e => { e.stopPropagation(); settle(b.dataset.settleDec, -1); }; });
   document.querySelectorAll('[data-settle-all]').forEach(b => { b.onclick = e => { e.stopPropagation(); settleAll(b.dataset.settleAll); }; });
   document.querySelectorAll('.tag-pill').forEach(pill => {
     pill.onclick = e => { e.stopPropagation(); drillFilter = {type:'tag', value:pill.dataset.tag}; showView('Home'); document.getElementById('txTitle').textContent = pill.dataset.tag; render(); };
   });
+}
+
+function openRecurringModal(txId) {
+  const t = txns.find(x => x.id === txId); if (!t) return;
+  const name = (t.note || t.category).replace(/#[\w-]+/g,'').trim();
+  const existing = recurringList.find(r => r.name && r.name.toLowerCase() === name.toLowerCase());
+  if (existing) {
+    toast('Already in recurring: ' + existing.name + ' · ' + recurringFreqLabel(existing), 'info');
+    return;
+  }
+  // Build modal
+  const overlay = document.createElement('div');
+  overlay.className = 'overlay on';
+  overlay.style.zIndex = 250;
+  overlay.innerHTML = `
+    <div class="sheet" style="max-width:480px;border-radius:20px">
+      <div class="sheet-drag"></div>
+      <div class="sheet-header">
+        <div class="sheet-title" style="font-size:18px"><em>Mark as</em> Recurring</div>
+        <button class="sheet-close" id="recModalClose">✕</button>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:2px">${name}</div>
+        <div style="font-size:11px;color:var(--m2)">${fmtAmt(t.amount)} · ${t.category}</div>
+      </div>
+      <div class="field">
+        <label class="field-label">Frequency</label>
+        <select class="rec-freq-sel" id="recModalFreq" style="width:100%;padding:10px 12px;font-size:13px">
+          <option value="daily">Every day</option>
+          <option value="weekly">Weekly — pick days</option>
+          <option value="monthly" selected>Monthly — pick date</option>
+          <option value="interval">Every N days</option>
+        </select>
+      </div>
+      <div class="field" id="recModalDowWrap" style="display:none">
+        <label class="field-label">Which days?</label>
+        <div class="rec-dow-row" id="recModalDow">
+          ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i) => `<button class="rec-dow-btn" data-dow="${i}">${d}</button>`).join('')}
+        </div>
+      </div>
+      <div class="field" id="recModalDateWrap">
+        <label class="field-label">Day of month</label>
+        <input class="txt-input" id="recModalDate" type="number" min="1" max="28" value="1" placeholder="e.g. 1 for 1st of every month">
+      </div>
+      <div class="field" id="recModalNWrap" style="display:none">
+        <label class="field-label">Every how many days?</label>
+        <input class="txt-input" id="recModalN" type="number" min="1" max="365" value="30">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-cancel" id="recModalCancel">Cancel</button>
+        <button class="btn btn-go" id="recModalSave">Add to Recurring</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const freqSel = overlay.querySelector('#recModalFreq');
+  const dowWrap = overlay.querySelector('#recModalDowWrap');
+  const dateWrap = overlay.querySelector('#recModalDateWrap');
+  const nWrap = overlay.querySelector('#recModalNWrap');
+  const close = () => { overlay.classList.remove('on'); setTimeout(() => overlay.remove(), 300); };
+
+  freqSel.onchange = () => {
+    dowWrap.style.display  = freqSel.value === 'weekly'   ? '' : 'none';
+    dateWrap.style.display = freqSel.value === 'monthly'  ? '' : 'none';
+    nWrap.style.display    = freqSel.value === 'interval' ? '' : 'none';
+  };
+  overlay.querySelectorAll('.rec-dow-btn').forEach(btn => {
+    btn.onclick = () => btn.classList.toggle('on');
+  });
+  overlay.querySelector('#recModalClose').onclick = close;
+  overlay.querySelector('#recModalCancel').onclick = close;
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  overlay.querySelector('#recModalSave').onclick = () => {
+    const freq = freqSel.value;
+    const entry = { id: genId(), name, amount: t.amount, category: t.category, payment: t.payment, freq, lastLogged: t.date };
+    if (freq === 'weekly') {
+      entry.freqDays = [...overlay.querySelectorAll('.rec-dow-btn.on')].map(b => parseInt(b.dataset.dow));
+      if (!entry.freqDays.length) { toast('Pick at least one day', 'err'); return; }
+    }
+    if (freq === 'monthly') entry.freqDate = parseInt(overlay.querySelector('#recModalDate').value) || 1;
+    if (freq === 'interval') entry.freqN = parseInt(overlay.querySelector('#recModalN').value) || 30;
+    recurringList.push(entry);
+    saveSettings(); pushSettings();
+    close(); render(); renderRecurringBanner();
+    toast('Added to recurring: ' + name, 'ok');
+  };
 }
 
 function settle(id, delta) {

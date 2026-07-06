@@ -9,24 +9,43 @@
  *
  * SHEET STRUCTURE:
  *   "Jul 2026", "Jun 2026", ...  — one sheet per month, auto-created
- *   "Settings"                   — key/value: budgets, goals, recurring
- *
- * NOTE: Delete your old "Transactions" sheet manually after deploying this.
+ *   "Settings"                   — four visual tables: Budget, Cat Budgets, Goals, Recurring
  */
 
 const SETTINGS_SHEET = 'Settings';
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const TX_HEADERS = ['Date','Time','Category','Amount','Mode of Payment','Note','Split','Paid','Location','Tags'];
+const TX_HEADERS  = ['Date','Time','Category','Amount','Mode of Payment','Note','Split','Paid','Location','Tags'];
+const CATS_LIST   = ['Food','Travel & Commute','Bills','Q-Commerce','Entertainment','Investments','Shopping','Others'];
+
+// Fixed row positions for each section in the Settings sheet
+const SEC = {
+  BUDGET_HEADER: 1,  BUDGET_COL: 2,  BUDGET_VAL: 3,
+  CATBUD_HEADER: 5,  CATBUD_COL: 6,  CATBUD_START: 7,   // rows 7-14
+  GOALS_HEADER:  16, GOALS_COL:  17, GOALS_START:  18,  // rows 18-37
+  REC_HEADER:    39, REC_COL:    40, REC_START:    41,   // rows 41+
+};
+
+// ── Colours ───────────────────────────────────────────────
+const C = {
+  DARK:   '#0d0d1a',
+  NAVY:   '#1a1a2e',
+  GOLD:   '#e8c547',
+  PURPLE: '#a09ec0',
+  WHITE:  '#ffffff',
+  STRIPE: '#f5f4fc',
+  TEXT:   '#1a1830',
+  MUTED:  '#7270a0',
+  GHOST:  '#cccccc',
+  BORDER: '#e2e0f0',
+};
 
 // ── Helpers ───────────────────────────────────────────────
 
 function monthSheetName(dateStr) {
-  // dateStr = "YYYY-MM-DD"
   if (!dateStr) return null;
   const parts = String(dateStr).split('-');
   if (parts.length < 2) return null;
-  const m = parseInt(parts[1]) - 1;
-  return MONTH_NAMES[m] + ' ' + parts[0];
+  return MONTH_NAMES[parseInt(parts[1]) - 1] + ' ' + parts[0];
 }
 
 function getOrCreateMonthSheet(ss, name) {
@@ -36,41 +55,20 @@ function getOrCreateMonthSheet(ss, name) {
     sheet.getRange(1, 1, 1, TX_HEADERS.length).setValues([TX_HEADERS]);
     try { ss.moveActiveSheet(1); } catch(e) {}
   }
-  formatSheetHeaders(sheet);
+  formatMonthSheet(sheet);
   return sheet;
 }
 
-function formatSheetHeaders(sheet) {
-  const headerRange = sheet.getRange(1, 1, 1, TX_HEADERS.length);
-
-  // Ensure headers are set
-  const existing = headerRange.getValues()[0];
-  if (!existing[0] || existing[0] === '') {
-    headerRange.setValues([TX_HEADERS]);
-  }
-
-  // Style the header row
-  headerRange
-    .setBackground('#1a1a2e')       // dark navy background
-    .setFontColor('#e8c547')         // gold text
-    .setFontWeight('bold')
-    .setFontSize(10)
-    .setFontFamily('Arial')
-    .setHorizontalAlignment('center')
-    .setBorder(false, false, true, false, false, false, '#e8c547', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-
-  // Freeze header row
+function formatMonthSheet(sheet) {
+  const h = sheet.getRange(1, 1, 1, TX_HEADERS.length);
+  if (!h.getValues()[0][0]) h.setValues([TX_HEADERS]);
+  h.setBackground(C.DARK).setFontColor(C.GOLD).setFontWeight('bold')
+   .setFontSize(10).setFontFamily('Arial').setHorizontalAlignment('center')
+   .setBorder(false, false, true, false, false, false, C.GOLD, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
   sheet.setFrozenRows(1);
-
-  // Set column widths
-  const widths = [100, 70, 130, 90, 140, 200, 55, 55, 150, 120];
-  widths.forEach((w, i) => sheet.setColumnWidth(i + 1, w));
-
-  // Style data rows alternating (light)
   sheet.setRowHeight(1, 32);
-
-  // Tab color — gold
-  sheet.setTabColor('#e8c547');
+  [100,70,130,90,140,200,55,55,150,120].forEach((w,i) => sheet.setColumnWidth(i+1, w));
+  sheet.setTabColor(C.GOLD);
 }
 
 function getAllMonthSheets(ss) {
@@ -78,9 +76,7 @@ function getAllMonthSheets(ss) {
 }
 
 function jsonResponse(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function rowToObj(headers, row) {
@@ -88,16 +84,9 @@ function rowToObj(headers, row) {
   headers.forEach((h, i) => {
     const val = row[i];
     if (h === 'Time' && val instanceof Date) {
-      // Sheets returns time cells as Date objects — extract HH:MM only
-      const hh = String(val.getHours()).padStart(2, '0');
-      const mm = String(val.getMinutes()).padStart(2, '0');
-      obj[h] = hh + ':' + mm;
+      obj[h] = String(val.getHours()).padStart(2,'0') + ':' + String(val.getMinutes()).padStart(2,'0');
     } else if (h === 'Date' && val instanceof Date) {
-      // Sheets may return date cells as Date objects too
-      const yyyy = val.getFullYear();
-      const mo = String(val.getMonth() + 1).padStart(2, '0');
-      const dd = String(val.getDate()).padStart(2, '0');
-      obj[h] = yyyy + '-' + mo + '-' + dd;
+      obj[h] = val.getFullYear() + '-' + String(val.getMonth()+1).padStart(2,'0') + '-' + String(val.getDate()).padStart(2,'0');
     } else {
       obj[h] = String(val || '').trim();
     }
@@ -105,64 +94,250 @@ function rowToObj(headers, row) {
   return obj;
 }
 
+function genIdGas() {
+  return Math.random().toString(36).slice(2,10);
+}
+
 // ── GET ───────────────────────────────────────────────────
 
 function doGet(e) {
   const action = (e.parameter && e.parameter.action) || 'read';
-  setupSheets(); // always ensure current month + Settings exist
+  setupSheets();
   if (action === 'readSettings') return readSettings();
   return readAllTransactions();
 }
 
-// Creates current month sheet + Settings if they don't exist yet. Safe to call repeatedly.
 function setupSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const today = new Date();
-  const name = MONTH_NAMES[today.getMonth()] + ' ' + today.getFullYear();
-  getOrCreateMonthSheet(ss, name);
-
-  // Settings sheet
-  let settingsSheet = ss.getSheetByName(SETTINGS_SHEET);
-  if (!settingsSheet) settingsSheet = ss.insertSheet(SETTINGS_SHEET);
-  formatSettingsSheet(settingsSheet);
+  getOrCreateMonthSheet(ss, MONTH_NAMES[today.getMonth()] + ' ' + today.getFullYear());
+  let s = ss.getSheetByName(SETTINGS_SHEET);
+  if (!s) { s = ss.insertSheet(SETTINGS_SHEET); initSettingsSheet(s); }
 }
 
-// Run this manually from Apps Script editor to reformat all existing month sheets
+// Run manually in Apps Script editor to reformat all sheets
 function formatAllSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  getAllMonthSheets(ss).forEach(sheet => formatSheetHeaders(sheet));
-  const settingsSheet = ss.getSheetByName(SETTINGS_SHEET);
-  if (settingsSheet) formatSettingsSheet(settingsSheet);
+  getAllMonthSheets(ss).forEach(s => formatMonthSheet(s));
+  const s = ss.getSheetByName(SETTINGS_SHEET);
+  if (s) initSettingsSheet(s);
 }
 
-function formatSettingsSheet(sheet) {
-  const header = sheet.getRange(1, 1, 1, 2);
-  if (!header.getValues()[0][0]) {
-    header.setValues([['Key', 'Value']]);
-  }
-  header
-    .setBackground('#1a1a2e')
-    .setFontColor('#e8c547')
-    .setFontWeight('bold')
-    .setFontSize(10)
-    .setFontFamily('Arial')
-    .setHorizontalAlignment('center')
-    .setBorder(false, false, true, false, false, false, '#e8c547', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-  sheet.setFrozenRows(1);
-  sheet.setColumnWidth(1, 160);
-  sheet.setColumnWidth(2, 500);
-  sheet.setRowHeight(1, 32);
-  sheet.setTabColor('#9b6dff');
+// ── Settings Sheet — Visual Tables ────────────────────────
+
+function initSettingsSheet(sheet) {
+  // Just format the skeleton, no data
+  _applySettingsChrome(sheet, 0, 0);
 }
+
+function writeSettings(settings) {
+  if (!settings) return jsonResponse({ error: 'No settings provided' });
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SETTINGS_SHEET);
+  if (!sheet) sheet = ss.insertSheet(SETTINGS_SHEET);
+
+  const needed = SEC.REC_START + 55;
+  if (sheet.getMaxRows() < needed) sheet.insertRowsAfter(sheet.getMaxRows(), needed - sheet.getMaxRows());
+  sheet.clearContents();
+
+  const catBudgets = settings.cat_budgets || {};
+  const goals      = settings.goals       || [];
+  const recurring  = settings.recurring   || [];
+  const DOW        = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  // ── Section 1: Monthly Budget ──────────────────────────
+  sheet.getRange(SEC.BUDGET_HEADER, 1).setValue('💰  Monthly Budget');
+  sheet.getRange(SEC.BUDGET_COL,    1).setValue('Amount (₹)');
+  sheet.getRange(SEC.BUDGET_VAL,    1).setValue(settings.monthly_budget || 0);
+
+  // ── Section 2: Category Budgets ───────────────────────
+  sheet.getRange(SEC.CATBUD_HEADER, 1).setValue('📊  Category Budgets');
+  sheet.getRange(SEC.CATBUD_COL,  1, 1, 2).setValues([['Category', 'Monthly Limit (₹)']]);
+  sheet.getRange(SEC.CATBUD_START, 1, CATS_LIST.length, 2)
+       .setValues(CATS_LIST.map(c => [c, catBudgets[c] || 0]));
+
+  // ── Section 3: Goals ──────────────────────────────────
+  sheet.getRange(SEC.GOALS_HEADER, 1).setValue('🎯  Savings Goals');
+  sheet.getRange(SEC.GOALS_COL, 1, 1, 5).setValues([['Name', 'Target (₹)', 'Saved (₹)', 'Progress', 'ID']]);
+  if (goals.length) {
+    sheet.getRange(SEC.GOALS_START, 1, goals.length, 5).setValues(
+      goals.map(g => [
+        g.name || '', g.target || 0, g.saved || 0,
+        g.target > 0 ? Math.round((g.saved||0) / g.target * 100) + '%' : '0%',
+        g.id || ''
+      ])
+    );
+  }
+
+  // ── Section 4: Recurring Expenses ─────────────────────
+  sheet.getRange(SEC.REC_HEADER, 1).setValue('🔁  Recurring Expenses');
+  sheet.getRange(SEC.REC_COL, 1, 1, 10).setValues([[
+    'Name', 'Amount (₹)', 'Category', 'Payment',
+    'Frequency', 'Days (weekly)', 'Day of Month', 'Every N Days', 'Last Logged', 'ID'
+  ]]);
+  if (recurring.length) {
+    sheet.getRange(SEC.REC_START, 1, recurring.length, 10).setValues(
+      recurring.map(r => [
+        r.name || '', r.amount || 0, r.category || '', r.payment || '',
+        r.freq || 'monthly',
+        (r.freqDays || []).map(d => DOW[d]).join(', '),
+        r.freqDate || '', r.freqN || '', r.lastLogged || '', r.id || ''
+      ])
+    );
+  }
+
+  _applySettingsChrome(sheet, goals.length, recurring.length);
+  return jsonResponse({ ok: true });
+}
+
+function _applySettingsChrome(sheet, goalCount, recCount) {
+  // Section header rows + their span
+  [ [SEC.BUDGET_HEADER, 1], [SEC.CATBUD_HEADER, 2], [SEC.GOALS_HEADER, 5], [SEC.REC_HEADER, 10] ]
+  .forEach(([row, cols]) => {
+    const r = sheet.getRange(row, 1, 1, cols);
+    r.setBackground(C.DARK).setFontColor(C.GOLD).setFontWeight('bold')
+     .setFontSize(11).setFontFamily('Arial').setVerticalAlignment('middle');
+    sheet.setRowHeight(row, 32);
+    if (cols > 1) try { r.merge(); } catch(e) {}
+  });
+
+  // Column header rows
+  [ [SEC.BUDGET_COL, 1], [SEC.CATBUD_COL, 2], [SEC.GOALS_COL, 5], [SEC.REC_COL, 10] ]
+  .forEach(([row, cols]) => {
+    sheet.getRange(row, 1, 1, cols)
+      .setBackground(C.NAVY).setFontColor(C.PURPLE).setFontWeight('bold')
+      .setFontSize(9).setFontFamily('Arial').setHorizontalAlignment('center');
+    sheet.setRowHeight(row, 26);
+  });
+
+  // Monthly budget value
+  sheet.getRange(SEC.BUDGET_VAL, 1)
+    .setBackground(C.WHITE).setFontColor(C.TEXT).setFontSize(12).setFontWeight('bold').setFontFamily('Arial');
+  sheet.setRowHeight(SEC.BUDGET_VAL, 30);
+
+  // Category budget rows
+  for (let i = 0; i < CATS_LIST.length; i++) {
+    const row = SEC.CATBUD_START + i;
+    sheet.getRange(row, 1, 1, 2)
+      .setBackground(i % 2 === 0 ? C.WHITE : C.STRIPE).setFontColor(C.TEXT)
+      .setFontSize(10).setFontFamily('Arial')
+      .setBorder(false, false, true, false, false, false, C.BORDER, SpreadsheetApp.BorderStyle.SOLID);
+    sheet.setRowHeight(row, 26);
+  }
+
+  // Goal rows
+  for (let i = 0; i < Math.max(goalCount, 1); i++) {
+    const row = SEC.GOALS_START + i;
+    const bg = i % 2 === 0 ? C.WHITE : C.STRIPE;
+    if (i < goalCount) {
+      sheet.getRange(row, 1, 1, 4).setBackground(bg).setFontColor(C.TEXT).setFontSize(10).setFontFamily('Arial')
+        .setBorder(false, false, true, false, false, false, C.BORDER, SpreadsheetApp.BorderStyle.SOLID);
+      sheet.getRange(row, 5).setBackground(bg).setFontColor(C.GHOST).setFontSize(8);
+    }
+    sheet.setRowHeight(row, 26);
+  }
+
+  // Recurring rows
+  for (let i = 0; i < Math.max(recCount, 1); i++) {
+    const row = SEC.REC_START + i;
+    const bg = i % 2 === 0 ? C.WHITE : C.STRIPE;
+    if (i < recCount) {
+      sheet.getRange(row, 1, 1, 9).setBackground(bg).setFontColor(C.TEXT).setFontSize(10).setFontFamily('Arial')
+        .setBorder(false, false, true, false, false, false, C.BORDER, SpreadsheetApp.BorderStyle.SOLID);
+      sheet.getRange(row, 10).setBackground(bg).setFontColor(C.GHOST).setFontSize(8);
+    }
+    sheet.setRowHeight(row, 26);
+  }
+
+  // Column widths (covers widest section — Recurring with 10 cols)
+  [180, 110, 140, 120, 100, 130, 110, 110, 130, 100].forEach((w,i) => sheet.setColumnWidth(i+1, w));
+  sheet.setTabColor('#9b6dff');
+  sheet.setFrozenRows(0);
+}
+
+function readSettings() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SETTINGS_SHEET);
+  if (!sheet) return jsonResponse({ settings: {} });
+
+  const r1 = String(sheet.getRange(1,1).getValue() || '').trim();
+
+  // Legacy flat JSON format — migrate transparently
+  if (r1 === 'Key' || r1 === 'monthly_budget' || r1 === 'cat_budgets' || r1 === 'goals' || r1 === 'recurring') {
+    const data = sheet.getDataRange().getValues();
+    const settings = {};
+    data.forEach(row => {
+      const k = String(row[0]||'').trim();
+      const v = String(row[1]||'').trim();
+      if (!k || k === 'Key') return;
+      try { settings[k] = JSON.parse(v); } catch(e) { settings[k] = v; }
+    });
+    return jsonResponse({ settings });
+  }
+
+  // New structured table format — batch read
+  const maxRow = Math.max(SEC.REC_START + 55, sheet.getLastRow());
+  const all = sheet.getRange(1, 1, maxRow, 10).getValues();
+
+  const settings = {};
+
+  // Monthly budget
+  settings.monthly_budget = parseFloat(all[SEC.BUDGET_VAL - 1][0]) || 0;
+
+  // Category budgets
+  const catBudgets = {};
+  CATS_LIST.forEach((cat, i) => {
+    const v = parseFloat(all[SEC.CATBUD_START - 1 + i][1]);
+    if (v > 0) catBudgets[cat] = v;
+  });
+  settings.cat_budgets = catBudgets;
+
+  // Goals
+  const goals = [];
+  for (let i = 0; i < 20; i++) {
+    const row = all[SEC.GOALS_START - 1 + i];
+    const name = String(row[0]||'').trim();
+    if (!name) break;
+    goals.push({ id: String(row[4]||'')||genIdGas(), name, target: parseFloat(row[1])||0, saved: parseFloat(row[2])||0 });
+  }
+  settings.goals = goals;
+
+  // Recurring
+  const DOW_MAP = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+  const recurring = [];
+  for (let i = 0; i < 50; i++) {
+    const ri = SEC.REC_START - 1 + i;
+    if (ri >= all.length) break;
+    const row = all[ri];
+    const name = String(row[0]||'').trim();
+    if (!name) break;
+    const daysStr = String(row[5]||'').trim();
+    const freqDays = daysStr ? daysStr.split(',').map(d=>DOW_MAP[d.trim()]).filter(d=>d!==undefined) : [];
+    const obj = {
+      id: String(row[9]||'')||genIdGas(), name,
+      amount: parseFloat(row[1])||0,
+      category: String(row[2]||'').trim(),
+      payment: String(row[3]||'').trim(),
+      freq: String(row[4]||'monthly').trim(),
+      freqDays,
+      lastLogged: String(row[8]||'').trim() || undefined,
+    };
+    const fd = parseInt(row[6]); if (fd) obj.freqDate = fd;
+    const fn = parseInt(row[7]); if (fn) obj.freqN = fn;
+    recurring.push(obj);
+  }
+  settings.recurring = recurring;
+
+  return jsonResponse({ settings });
+}
+
+// ── Transaction GET ───────────────────────────────────────
 
 function readAllTransactions() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = getAllMonthSheets(ss);
-
-  // Also read the old Transactions sheet if it still exists (migration fallback)
   const legacy = ss.getSheetByName('Transactions');
   if (legacy) sheets.push(legacy);
-
   const rows = [];
   sheets.forEach(sheet => {
     const data = sheet.getDataRange().getValues();
@@ -176,41 +351,37 @@ function readAllTransactions() {
   return jsonResponse({ rows });
 }
 
-// ── POST ──────────────────────────────────────────────────
+// ── Transaction POST ──────────────────────────────────────
 
 function doPost(e) {
   let body;
   try { body = JSON.parse(e.postData.contents); }
   catch(err) { return jsonResponse({ error: 'Invalid JSON' }); }
-
   if (body.action === 'writeSettings') return writeSettings(body.settings);
   if (body.action === 'append')        return appendTransaction(body);
   if (body.action === 'update')        return updateTransaction(body);
   if (body.action === 'delete')        return deleteTransaction(body);
-
   return jsonResponse({ error: 'Unknown action: ' + body.action });
 }
 
 function appendTransaction(body) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = monthSheetName(body['Date']);
-  if (!sheetName) return jsonResponse({ error: 'Invalid date: ' + body['Date'] });
-  const sheet = getOrCreateMonthSheet(ss, sheetName);
+  const name = monthSheetName(body['Date']);
+  if (!name) return jsonResponse({ error: 'Invalid date: ' + body['Date'] });
+  const sheet = getOrCreateMonthSheet(ss, name);
   sheet.appendRow([
     body['Date'], body['Time'], body['Category'], body['Amount'],
-    body['Mode of Payment'], body['Note'], body['Split'] || 1,
-    body['Paid'] || 0, body['Location'] || '', body['Tags'] || ''
+    body['Mode of Payment'], body['Note'], body['Split']||1,
+    body['Paid']||0, body['Location']||'', body['Tags']||''
   ]);
   return jsonResponse({ ok: true });
 }
 
 function findRow(ss, body) {
-  // Returns { sheet, rowIndex } or null
   const key = body.oldKey || [body['Date'], body['Time'], body['Amount'], body['Category']].join('|');
-  const sheetName = monthSheetName(body['Date'] || (key.split('|')[0]));
-  // Try the specific month sheet first, then fall back to all sheets
-  const toSearch = sheetName
-    ? [ss.getSheetByName(sheetName)].filter(Boolean).concat(getAllMonthSheets(ss))
+  const name = monthSheetName(body['Date'] || key.split('|')[0]);
+  const toSearch = name
+    ? [ss.getSheetByName(name)].filter(Boolean).concat(getAllMonthSheets(ss))
     : getAllMonthSheets(ss);
   const seen = new Set();
   for (const sheet of toSearch) {
@@ -218,12 +389,11 @@ function findRow(ss, body) {
     seen.add(sheet.getName());
     const data = sheet.getDataRange().getValues();
     if (data.length < 2) continue;
-    const headers = data[0].map(h => String(h).trim());
-    const di = headers.indexOf('Date'), ti = headers.indexOf('Time'),
-          ai = headers.indexOf('Amount'), ci = headers.indexOf('Category');
+    const hdr = data[0].map(h => String(h).trim());
+    const di=hdr.indexOf('Date'), ti=hdr.indexOf('Time'), ai=hdr.indexOf('Amount'), ci=hdr.indexOf('Category');
     for (let r = 1; r < data.length; r++) {
-      const rowKey = [data[r][di], data[r][ti], data[r][ai], data[r][ci]].join('|');
-      if (rowKey === key) return { sheet, rowIndex: r + 1 };
+      if ([data[r][di], data[r][ti], data[r][ai], data[r][ci]].join('|') === key)
+        return { sheet, rowIndex: r + 1 };
     }
   }
   return null;
@@ -235,8 +405,8 @@ function updateTransaction(body) {
   if (!found) return jsonResponse({ ok: true, note: 'row not found' });
   found.sheet.getRange(found.rowIndex, 1, 1, TX_HEADERS.length).setValues([[
     body['Date'], body['Time'], body['Category'], body['Amount'],
-    body['Mode of Payment'], body['Note'], body['Split'] || 1,
-    body['Paid'] || 0, body['Location'] || '', body['Tags'] || ''
+    body['Mode of Payment'], body['Note'], body['Split']||1,
+    body['Paid']||0, body['Location']||'', body['Tags']||''
   ]]);
   return jsonResponse({ ok: true });
 }
@@ -246,45 +416,5 @@ function deleteTransaction(body) {
   const found = findRow(ss, body);
   if (!found) return jsonResponse({ ok: true, note: 'row not found' });
   found.sheet.deleteRow(found.rowIndex);
-  return jsonResponse({ ok: true });
-}
-
-// ── Settings ──────────────────────────────────────────────
-
-function readSettings() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SETTINGS_SHEET);
-  if (!sheet) return jsonResponse({ settings: {} });
-  const data = sheet.getDataRange().getValues();
-  const settings = {};
-  for (let i = 0; i < data.length; i++) {
-    const key = String(data[i][0]).trim();
-    const val = String(data[i][1]).trim();
-    if (!key) continue;
-    try { settings[key] = JSON.parse(val); }
-    catch(e) { settings[key] = val; }
-  }
-  return jsonResponse({ settings });
-}
-
-function writeSettings(settings) {
-  if (!settings) return jsonResponse({ error: 'No settings provided' });
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SETTINGS_SHEET);
-  if (!sheet) sheet = ss.insertSheet(SETTINGS_SHEET);
-  const data = sheet.getDataRange().getValues();
-  const rowMap = {};
-  for (let i = 0; i < data.length; i++) {
-    const k = String(data[i][0]).trim();
-    if (k) rowMap[k] = i + 1;
-  }
-  Object.entries(settings).forEach(([key, value]) => {
-    const serialized = typeof value === 'object' ? JSON.stringify(value) : String(value);
-    if (rowMap[key]) {
-      sheet.getRange(rowMap[key], 1, 1, 2).setValues([[key, serialized]]);
-    } else {
-      sheet.appendRow([key, serialized]);
-    }
-  });
   return jsonResponse({ ok: true });
 }
