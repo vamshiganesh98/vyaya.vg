@@ -378,7 +378,7 @@ function appendTransaction(body) {
 }
 
 function findRow(ss, body) {
-  const key = body.oldKey || [body['Date'], body['Time'], body['Amount'], body['Category']].join('|');
+  const key = body.oldKey || [body['Date'], body['Time'], Math.round(parseFloat(body['Amount'])||0), body['Category']].join('|');
   const name = monthSheetName(body['Date'] || key.split('|')[0]);
   const toSearch = name
     ? [ss.getSheetByName(name)].filter(Boolean).concat(getAllMonthSheets(ss))
@@ -392,8 +392,16 @@ function findRow(ss, body) {
     const hdr = data[0].map(h => String(h).trim());
     const di=hdr.indexOf('Date'), ti=hdr.indexOf('Time'), ai=hdr.indexOf('Amount'), ci=hdr.indexOf('Category');
     for (let r = 1; r < data.length; r++) {
-      if ([data[r][di], data[r][ti], data[r][ai], data[r][ci]].join('|') === key)
-        return { sheet, rowIndex: r + 1 };
+      const rawDate = data[r][di];
+      const rowDate = rawDate instanceof Date
+        ? rawDate.getFullYear() + '-' + String(rawDate.getMonth()+1).padStart(2,'0') + '-' + String(rawDate.getDate()).padStart(2,'0')
+        : String(rawDate||'').trim();
+      const rawTime = data[r][ti];
+      const rowTime = rawTime instanceof Date
+        ? String(rawTime.getHours()).padStart(2,'0') + ':' + String(rawTime.getMinutes()).padStart(2,'0')
+        : String(rawTime||'').trim().slice(0,5);
+      const rowKey = [rowDate, rowTime, Math.round(parseFloat(data[r][ai])||0), data[r][ci]].join('|');
+      if (rowKey === key) return { sheet, rowIndex: r + 1 };
     }
   }
   return null;

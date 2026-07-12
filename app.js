@@ -854,7 +854,7 @@ async function saveExpense() {
   if (editId) {
     const t = txns.find(x => x.id === editId);
     if (t) {
-      const oldKey = t.date + '|' + t.time + '|' + t.amount + '|' + t.category;
+      const oldKey = t.date + '|' + t.time + '|' + Math.round(t.amount) + '|' + t.category;
       Object.assign(t, {amount:finalAmt, originalAmount, originalCurrency, category:cat, payment:pay, note, date, time, split:splitN, tags:allTags, location, recurring:isRecurring});
       if (sheetUrl) syncTxn('update', t, oldKey);
     }
@@ -1364,9 +1364,17 @@ function setMood(rating) {
 async function syncTxn(action, t, oldKey) {
   if (!sheetUrl) return;
   const body = {
-    action, Date: t.date, Time: t.time, Category: t.category,
-    Amount: t.amount, 'Mode of Payment': t.payment, Note: t.note,
-    Split: t.split, Paid: t.paidCount,
+    action,
+    Date: t.date,
+    Time: t.time,
+    Category: t.category,
+    Amount: Math.round(t.amount),
+    'Mode of Payment': t.payment,
+    Note: t.note || '',
+    Split: t.split || 1,
+    Paid: t.paidCount || 0,
+    Location: t.location || '',
+    Tags: (t.tags || []).join(' '),
   };
   if (oldKey) body.oldKey = oldKey;
   try {
@@ -1395,7 +1403,7 @@ async function pushSettings() {
 async function autoSync() {
   if (!sheetUrl) return 'no-url';
   const ctrl = new AbortController();
-  const timeout = setTimeout(() => ctrl.abort(), 8000);
+  const timeout = setTimeout(() => ctrl.abort(), 12000);
   try {
     const [txnRes, settRes] = await Promise.all([
       fetch(sheetUrl + '?action=read', {signal: ctrl.signal}),
@@ -1752,16 +1760,31 @@ function init() {
   const eodDismiss = document.getElementById('eodDismiss');
   if (eodDismiss) eodDismiss.onclick = () => { document.getElementById('eodModal').classList.remove('on'); };
 
-  // Initial render
+  // Initial render from local data
   render();
   renderRecurringBanner();
   showView('Home');
 
-  // Loading screen — show briefly then dismiss, sync runs in background
+  // Loading screen — wait for sync, then dismiss
   const loadScreen = document.getElementById('loadScreen');
+  const loadSub = document.getElementById('loadSub');
+  const loadRing = document.querySelector('.load-ring');
   const dismissLoad = () => { if (loadScreen) loadScreen.classList.add('hidden'); };
-  setTimeout(dismissLoad, 800);
-  if (sheetUrl) autoSync();
+
+  if (sheetUrl) {
+    if (loadSub) loadSub.textContent = 'Syncing…';
+    autoSync().then(result => {
+      if (result === 'err') {
+        if (loadRing) loadRing.style.borderTopColor = 'var(--re)';
+        if (loadSub) { loadSub.textContent = 'Sync failed — showing local data'; loadSub.style.color = 'var(--re)'; }
+        setTimeout(dismissLoad, 1800);
+      } else {
+        dismissLoad();
+      }
+    });
+  } else {
+    setTimeout(dismissLoad, 600);
+  }
 
   // Auto-load historical CSV if no data
   autoLoadCSV();
