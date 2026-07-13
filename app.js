@@ -1810,7 +1810,7 @@ async function handleURLParams() {
   const cat = normCat(params.get('cat') || 'Others');
   const pay = params.get('pay') || 'UPI';
   const note = params.get('note') || '';
-  const split = parseInt(params.get('split') || '1') || 1;
+  let split = parseInt(params.get('split') || '1') || 1;
   const date = params.get('date') || today();
   const time = params.get('time') || nowTime();
   const location = params.get('loc') || '';
@@ -1819,10 +1819,55 @@ async function handleURLParams() {
   // Clean URL immediately so refresh doesn't re-save
   history.replaceState({}, document.title, window.location.pathname);
 
-  // Build tags
-  const allTags = [...parseTags(tagsRaw), ...parseTags(note)];
+  // If amt > 1000 and split not explicitly provided, ask how many people
+  if (amt > 1000 && !params.get('split')) {
+    const splitOverlay = document.createElement('div');
+    splitOverlay.className = 'overlay on';
+    splitOverlay.style.zIndex = 250;
+    splitOverlay.innerHTML = `
+      <div class="sheet" style="max-width:480px;border-radius:20px;padding:28px 24px 36px">
+        <div class="sheet-drag"></div>
+        <div class="sheet-title" style="margin-bottom:6px"><em>Split</em> this expense?</div>
+        <div style="font-size:13px;color:var(--m2);margin-bottom:20px">${catInfo(cat).i} ₹${Math.round(amt)} · ${note || cat}</div>
+        <div class="field">
+          <label class="field-label">Number of people (including you)</label>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+            <button class="settle-btn" id="urlSplitMinus">−</button>
+            <span class="settle-count" id="urlSplitVal" style="font-size:18px;font-weight:700;min-width:32px;text-align:center">1</span>
+            <button class="settle-btn" id="urlSplitPlus">+</button>
+            <span style="font-size:11px;color:var(--m2)">Your share: <strong id="urlSplitShare">${fmtAmt(amt)}</strong></span>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:20px">
+          <button class="btn btn-cancel" id="urlSplitSkip">No split</button>
+          <button class="btn btn-go" id="urlSplitSave">Save</button>
+        </div>
+      </div>`;
+    document.body.appendChild(splitOverlay);
 
-  // Save directly without opening the sheet
+    let splitN = 1;
+    const updateShare = () => {
+      splitOverlay.querySelector('#urlSplitVal').textContent = splitN;
+      splitOverlay.querySelector('#urlSplitShare').textContent = fmtAmt(amt / splitN);
+    };
+    splitOverlay.querySelector('#urlSplitMinus').onclick = () => { if (splitN > 1) { splitN--; updateShare(); } };
+    splitOverlay.querySelector('#urlSplitPlus').onclick  = () => { if (splitN < 10) { splitN++; updateShare(); } };
+
+    const doSave = (n) => {
+      splitOverlay.remove();
+      _saveURLTransaction(amt, cat, pay, note, n, date, time, location, tagsRaw);
+    };
+    splitOverlay.querySelector('#urlSplitSkip').onclick = () => doSave(1);
+    splitOverlay.querySelector('#urlSplitSave').onclick = () => doSave(splitN);
+    return; // wait for user action
+  }
+
+  // Save directly (no split prompt needed)
+  _saveURLTransaction(amt, cat, pay, note, split, date, time, location, tagsRaw);
+}
+
+function _saveURLTransaction(amt, cat, pay, note, split, date, time, location, tagsRaw) {
+  const allTags = [...parseTags(tagsRaw), ...parseTags(note)];
   const t = {
     id: genId(),
     amount: amt,
@@ -1839,16 +1884,11 @@ async function handleURLParams() {
     location,
     recurring: false,
   };
-
   txns.unshift(t);
   save();
   render();
-
-  // Show confirmation toast
   const catI = catInfo(cat).i;
-  toast(catI + ' ₹' + Math.round(amt) + (note ? ' · ' + note : '') + ' saved!', 'ok');
-
-  // Sync to sheet if configured
+  toast(catI + ' ₹' + Math.round(amt) + (note ? ' · ' + note : '') + (split > 1 ? ' · split ' + split : '') + ' saved!', 'ok');
   if (sheetUrl) syncTxn('append', t);
 }
 
