@@ -11,11 +11,11 @@
 
 ### **Your money. Your device. Your rules.**
 
-*A personal expense tracker — built for the iPhone, synced via GitHub, signed with intent.*
+*A personal expense tracker — built for the iPhone, synced via Google Sheets, signed with intent.*
 
-[![Live App](https://img.shields.io/badge/Live%20App-Vyaya.vg-e8c547?style=for-the-badge&labelColor=0a0a0f)](https://vamshiganesh98.github.io/vyaya.vg/)
-[![PWA](https://img.shields.io/badge/PWA-Offline%20Ready-3ddc84?style=for-the-badge&labelColor=0a0a0f)](https://vamshiganesh98.github.io/vyaya.vg/)
-[![GitHub Sync](https://img.shields.io/badge/Sync-GitHub%20CSV-5b9cf6?style=for-the-badge&labelColor=0a0a0f)](#-github-sync)
+[![Live App](https://img.shields.io/badge/Live%20App-Vyaya.vg-e8c547?style=for-the-badge&labelColor=080810)](https://vamshiganesh98.github.io/vyaya.vg/)
+[![PWA](https://img.shields.io/badge/PWA-Offline%20Ready-3ddc84?style=for-the-badge&labelColor=080810)](https://vamshiganesh98.github.io/vyaya.vg/)
+[![Sheets Sync](https://img.shields.io/badge/Sync-Google%20Sheets-5b9cf6?style=for-the-badge&labelColor=080810)](#-google-sheets-sync)
 
 </div>
 
@@ -25,7 +25,7 @@
 
 **Vyaya** (व्यय) — Sanskrit for *expenditure*. **`.vg`** — my signature.
 
-A personal budgeting app built for one person: me. No accounts, no subscriptions, no servers. Add expenses from your iPhone in seconds via a Back Tap shortcut. Data lives in `localStorage` on your phone and syncs to GitHub as a CSV — readable from any device, forever.
+A personal budgeting app built for one person: me. No accounts, no subscriptions. Add expenses from your iPhone in seconds via a Back Tap shortcut. Data lives in `localStorage` and merges with Google Sheets so local offline edits are never wiped on sync.
 
 ---
 
@@ -33,21 +33,18 @@ A personal budgeting app built for one person: me. No accounts, no subscriptions
 
 | | |
 |---|---|
-| **Splash screen** | Gold `₹` icon loads on every open while data fetches |
+| **Fast add** | Amount → category → payment → save. Extra fields live under *More options* |
 | **Offline-first PWA** | Installs on iPhone home screen, works without internet |
-| **GitHub CSV sync** | `vyaya-vg.csv` on GitHub is the source of truth — push from phone, read anywhere |
+| **Google Sheets sync** | Merge sync with stable row IDs — local pending rows are kept |
 | **localStorage cache** | Phone stores data locally — shows instantly, syncs in background |
-| **CSV import** | Tap 📂 to load a `vyaya-vg.csv` from Files app — merges new rows |
-| **CSV export** | Month / year / all-time / payment report download |
+| **CSV import / export** | Merge import + full export with Ids |
 | **Back Tap shortcut** | Double-tap iPhone back → log expense in 3 taps |
-| **8 categories** | Food · Travel & Commute · Q-Commerce · Bills · Investments · Vacation · Shopping · Others |
+| **8 categories** | Food · Travel & Commute · Q-Commerce · Bills · Entertainment · Investments · Shopping · Others |
 | **2 payment modes** | UPI · Credit Card |
-| **Monthly budget** | Set a limit, track remaining, get warned when over |
-| **6-month trend** | Bar chart of last 6 months |
-| **Top spend highlight** | Biggest category card on home screen |
-| **Payment donut** | UPI vs Credit Card split with donut chart |
-| **About tab** | Built-in shortcut setup guide |
-| **Dark UI** | Deep dark theme with gold accents |
+| **Monthly + category budgets** | Progress in the home hero; Investments excluded from spend totals |
+| **Analytics** | Overview, categories, trends, year-in-review |
+| **Dark / light / auto** | Theme toggle with gold accent brand |
+| **Smart search** | `>500 food`, `#work`, `jun`, `upi`, `last month` |
 
 ---
 
@@ -55,12 +52,14 @@ A personal budgeting app built for one person: me. No accounts, no subscriptions
 
 ```
 vyaya.vg/
-├── index.html           ← Entire app (single file, no build step)
-├── vyaya-vg.csv         ← Expense data — source of truth on GitHub
-├── manifest.json        ← PWA manifest
-├── sw.js                ← Service worker (offline cache)
-├── icon.svg             ← App icon (SVG)
-├── apple-touch-icon.png ← iPhone home screen icon (180×180 PNG)
+├── index.html              ← App shell
+├── app.js                  ← Logic
+├── style.css               ← UI
+├── google-apps-script.js   ← Sheets backend (deploy as Web App)
+├── vyaya-vg.csv            ← Optional historical seed
+├── manifest.json           ← PWA manifest
+├── sw.js                   ← Service worker (network-first for JS/CSS)
+├── icon-192.png / icon-512.png / apple-touch-icon.png
 └── README.md
 ```
 
@@ -69,100 +68,63 @@ vyaya.vg/
 ## 🔄 How Data Flows
 
 ```
-iPhone (you)                          GitHub
+iPhone (you)                          Google Sheets
 ─────────────────────────────────     ─────────────────
-Back Tap → add expense
+Back Tap / + → add expense
   └─ saves to localStorage instantly
-  
-📂 Import CSV
-  └─ merges into localStorage
+  └─ marks pending if offline
 
-Settings → ⬆ Push to GitHub  ──────► writes vyaya-vg.csv
-                                       (authenticated, needs token)
+Settings → Sync Now  ──────────────► merge append/update/delete
+                                       (stable Id column)
 
 ─────────────────────────────────
-Open app anywhere (laptop etc.)
-  └─ fetches vyaya-vg.csv  ◄──────── reads vyaya-vg.csv
-  └─ displays data                   (public, no token needed)
+Open app
+  └─ merge remote rows with local
+  └─ pending local rows are kept
 ```
-
-**Phone** (token saved) — localStorage is primary, GitHub is backup you push to.  
-**Any other device** — reads directly from GitHub CSV, read-only.
 
 ---
 
 ## 📲 Install on iPhone
 
 1. Open **[https://vamshiganesh98.github.io/vyaya.vg/](https://vamshiganesh98.github.io/vyaya.vg/)** in **Safari**
-2. Tap **Share** `⎋` → **"Add to Home Screen"**
+2. Tap **Share** → **"Add to Home Screen"**
 3. Name it **Vyaya.vg** → tap **Add**
-4. The gold `₹` icon appears on your home screen
 
 ---
 
-## ☁️ GitHub Sync Setup (one time)
+## ☁ Google Sheets Sync
 
-You need a GitHub Personal Access Token to push expenses from the app.
+1. Create a Google Sheet
+2. Extensions → Apps Script → paste `google-apps-script.js`
+3. Deploy → New deployment → Web app → Execute as: Me · Who has access: Anyone
+4. Copy the Web App URL into **Settings → Sync** in the app
+5. Redeploy a new version whenever you update the script (especially after the Id column change)
 
-**Get a token:**
-1. `github.com → Settings → Developer settings → Personal access tokens → Tokens (classic)`
-2. Generate new token → name it `vyaya-vg` → expiry: No expiration → tick **repo** scope
-3. Copy the token
-
-**Save it in the app:**
-1. Open the app → **Settings → ☁️ GitHub Sync**
-2. Repo: `vamshiganesh98/vyaya.vg`
-3. Token: paste your PAT
-4. Tap **Save Token**
-
-**From now on:**
-- Add expenses via Back Tap or `+` → data in localStorage
-- Tap **⬆ Push to GitHub** in Settings → writes `vyaya-vg.csv` to GitHub
-- Open on laptop → automatically reads latest from GitHub
+Sheets columns:
+`Date, Time, Category, Amount, Mode of Payment, Note, Split, Paid, Location, Tags, Id`
 
 ---
 
 ## ⚡ Back Tap Shortcut (iPhone)
 
-Double-tap the back of your iPhone → log an expense in 3 taps.
-
-**Setup (once):**
-
-| Step | Action |
-|------|--------|
-| 1 | Shortcuts app → **+** → New Shortcut |
-| 2 | Add **"Ask for Input"** → Question: `Amount ₹` → Type: Number |
-| 3 | Add **"Choose from List"** → items: `Food, Travel & Commute, Q-Commerce, Bills, Investments, Vacation, Shopping, Others` |
-| 4 | Add **"Choose from List"** → items: `UPI, Credit Card` |
-| 5 | Add **"Open URLs"** → build URL with variables from steps above |
-| 6 | Settings → Accessibility → Touch → Back Tap → Double Tap → select shortcut |
-
-**Shortcut URL:**
 ```
 https://vamshiganesh98.github.io/vyaya.vg/?amt=AMOUNT&cat=CATEGORY&pay=PAYMENT
 ```
-Replace `AMOUNT`, `CATEGORY`, `PAYMENT` with the *Provided Input* variables from steps 2, 3, 4.
+
+Categories: `Food, Travel & Commute, Q-Commerce, Bills, Entertainment, Investments, Shopping, Others`  
+Payments: `UPI, Credit Card`
 
 ---
 
 ## 📂 CSV Format
 
 ```
-Date,Time,Category,Amount,Mode of Payment
-06-06-2026,10:08,Food,12,UPI
-05-06-2026,22:44,Food,70,Credit Card
-02-06-2026,09:30,Travel & Commute,400,UPI
+Id,Date,Time,Category,Amount,Mode of Payment,Note,Split,Paid,Tags,Location
+abc123,06-06-2026,10:08,Food,12,UPI,lunch,1,0,#work,
 ```
 
-| Column | Format | Valid values |
-|--------|--------|--------------|
-| Date | `DD-MM-YYYY` or `DD/MM/YYYY` | any date |
-| Time | `HH:MM` | `00:00` if unknown |
-| Category | text | Food, Travel & Commute, Q-Commerce, Bills, Investments, Vacation, Shopping, Others |
-| Amount | number | `12` or `924.50` |
-| Mode of Payment | text | UPI, Credit Card |
-
-Header row is optional — auto-detected and skipped.
+Header row is optional — auto-detected. `Id` is optional on import (generated if missing).
 
 ---
 
@@ -170,18 +132,16 @@ Header row is optional — auto-detected and skipped.
 
 | | |
 |---|---|
-| **Frontend** | Vanilla HTML + CSS + JS — zero dependencies, zero build |
-| **Storage** | `localStorage` on phone + `vyaya-vg.csv` on GitHub |
-| **Sync** | GitHub Contents API (authenticated PUT, public GET) |
-| **Offline** | Service Worker v10 — full offline after first load |
-| **PWA** | Web App Manifest — standalone display, custom icon |
-| **Fonts** | Syne + DM Sans via Google Fonts |
+| **Frontend** | Vanilla HTML + CSS + JS — zero dependencies |
+| **Storage** | `localStorage` + Google Sheets merge sync |
+| **Offline** | Service Worker v5 — network-first for app shell |
+| **Fonts** | Syne + DM Sans |
 | **Hosting** | GitHub Pages |
 
 ---
 
 <div align="center">
 
-*Built by* **VG** · *Powered by* **₹** · *Synced via* **GitHub**
+*Built by* **VG** · *Powered by* **₹** · *Synced via* **Sheets**
 
 </div>
