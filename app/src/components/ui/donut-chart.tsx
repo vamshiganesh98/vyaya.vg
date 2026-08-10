@@ -54,7 +54,7 @@ export function DonutChart({
             y={cy + 5}
             textAnchor="middle"
             fill="currentColor"
-            className="fill-foam"
+            className="fill-fg"
             fontSize="12"
             fontWeight="700"
             fontFamily="Bricolage Grotesque, sans-serif"

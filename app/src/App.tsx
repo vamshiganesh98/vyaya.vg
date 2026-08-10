@@ -1,20 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { BarChart3, Plus, Settings, Target, Wallet } from 'lucide-react'
+import {
+  BarChart3,
+  Plus,
+  Settings,
+  Sparkles,
+  Target,
+  Wallet,
+  Wifi,
+  WifiOff,
+} from 'lucide-react'
 import { AddSheet, type AddSheetPayload } from '@/components/AddSheet'
 import { PlanView } from '@/components/PlanView'
 import { QuickAdd } from '@/components/QuickAdd'
 import { ReportView } from '@/components/ReportView'
 import { SetupView } from '@/components/SetupView'
 import { SpendView } from '@/components/SpendView'
+import { AuroraBackdrop } from '@/components/ui/aurora-backdrop'
 import { useExpenses } from '@/hooks/useExpenses'
 import { parsedToTxnPayload, parseExpenseText } from '@/lib/ai-parse'
 import { normCat, parseTags } from '@/lib/types'
-import { cn, nowTime, today } from '@/lib/utils'
+import { cn, fmtAmt, nowTime, today } from '@/lib/utils'
 
 type Tab = 'spend' | 'report' | 'plan' | 'setup'
 
 type ToastState = { msg: string; type?: string } | null
+
+const TABS: { id: Tab; label: string; icon: typeof Wallet; desc: string }[] = [
+  { id: 'spend', label: 'Spend', icon: Wallet, desc: 'Transactions' },
+  { id: 'report', label: 'Report', icon: BarChart3, desc: 'Analytics' },
+  { id: 'plan', label: 'Plan', icon: Target, desc: 'Budgets' },
+  { id: 'setup', label: 'Setup', icon: Settings, desc: 'Sync & keys' },
+]
 
 export default function App() {
   const api = useExpenses()
@@ -36,14 +53,20 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToast(null), 2800)
   }, [])
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', 'light')
-    document.documentElement.style.colorScheme = 'light'
-    const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', '#f7f7f5')
+  const openQuickAdd = useCallback(() => {
+    setQuickText('')
+    setQuickAuto(false)
+    setQuickSave(false)
+    setQuickOpen(true)
   }, [])
 
-  // URL: ?q= plain English (iPhone Shortcut) or legacy ?amt=
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    document.documentElement.style.colorScheme = 'dark'
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', '#06060c')
+  }, [])
+
   useEffect(() => {
     if (api.booting || urlHandled.current) return
     urlHandled.current = true
@@ -135,93 +158,192 @@ export default function App() {
 
   const editTxn = editId ? api.txns.find((t) => t.id === editId) || null : null
 
-  const tabs: { id: Tab; label: string; icon: typeof Wallet }[] = [
-    { id: 'spend', label: 'Spend', icon: Wallet },
-    { id: 'report', label: 'Report', icon: BarChart3 },
-    { id: 'plan', label: 'Plan', icon: Target },
-    { id: 'setup', label: 'Setup', icon: Settings },
-  ]
+  const syncLabel =
+    api.syncState === 'ok'
+      ? `Synced ${api.lastSync}`
+      : api.syncState === 'syncing'
+        ? 'Syncing…'
+        : api.syncState === 'err'
+          ? 'Sync error'
+          : 'Local only'
 
   if (api.booting || urlLoading) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4">
-        <div className="text-xl font-semibold tracking-tight">vyaya.vg</div>
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-fg" />
+      <div className="relative flex min-h-dvh flex-col items-center justify-center gap-5">
+        <div className="app-bg" />
+        <AuroraBackdrop />
+        <div className="font-display text-2xl font-bold tracking-tight">
+          vyaya<span className="text-accent">.</span>vg
+        </div>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-accent" />
         <p className="text-xs text-muted">{urlLoading ? 'Saving your expense…' : 'Loading…'}</p>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto min-h-dvh max-w-lg pb-28">
-      <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 px-4 py-4 backdrop-blur-md">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold tracking-tight">vyaya.vg</h1>
-          <div className="flex items-center gap-2 text-[10px] text-muted">
-            <span
-              className={cn(
-                'h-1.5 w-1.5 rounded-full',
-                api.syncState === 'ok' && 'bg-good',
-                api.syncState === 'err' && 'bg-bad',
-                api.syncState === 'syncing' && 'animate-pulse bg-fg',
-                api.syncState === 'local' && 'bg-muted',
-              )}
-            />
-            {api.syncState === 'ok' ? `synced ${api.lastSync}` : api.syncState}
+    <div className="relative min-h-dvh">
+      <div className="app-bg" />
+      <AuroraBackdrop />
+
+      <div className="relative flex min-h-dvh lg:pl-[240px]">
+        {/* Desktop sidebar */}
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-[240px] flex-col border-r border-line bg-canvas/80 backdrop-blur-xl lg:flex">
+          <div className="border-b border-line px-6 py-6">
+            <div className="font-display text-xl font-bold tracking-tight">
+              vyaya<span className="text-accent">.</span>vg
+            </div>
+            <p className="mt-1 text-[11px] text-muted">Personal expense tracker</p>
           </div>
+
+          <nav className="flex-1 space-y-1 p-4">
+            {TABS.map(({ id, label, icon: Icon, desc }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTab(id)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition',
+                  tab === id
+                    ? 'bg-accent/12 text-accent'
+                    : 'text-muted hover:bg-white/5 hover:text-fg',
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" strokeWidth={tab === id ? 2.5 : 2} />
+                <div>
+                  <div className="text-sm font-semibold">{label}</div>
+                  <div className="text-[10px] opacity-70">{desc}</div>
+                </div>
+              </button>
+            ))}
+          </nav>
+
+          <div className="space-y-3 border-t border-line p-4">
+            <button type="button" className="btn-primary w-full" onClick={openQuickAdd}>
+              <Plus className="h-4 w-4" />
+              Add expense
+            </button>
+            <div className="flex items-center gap-2 rounded-xl bg-white/4 px-3 py-2 text-[10px] text-muted">
+              {api.syncState === 'ok' ? (
+                <Wifi className="h-3 w-3 text-good" />
+              ) : (
+                <WifiOff className="h-3 w-3" />
+              )}
+              <span className="truncate">{syncLabel}</span>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+          {/* Mobile header */}
+          <header className="sticky top-0 z-30 border-b border-line bg-canvas/80 px-4 py-3 backdrop-blur-xl lg:hidden">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-display text-lg font-bold tracking-tight">
+                  vyaya<span className="text-accent">.</span>vg
+                </div>
+                <div className="text-[10px] text-muted">
+                  {TABS.find((t) => t.id === tab)?.label} · {fmtAmt(api.todaySpend)} today
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    api.syncState === 'ok' && 'bg-good',
+                    api.syncState === 'err' && 'bg-bad',
+                    api.syncState === 'syncing' && 'animate-pulse bg-accent',
+                    api.syncState === 'local' && 'bg-muted',
+                  )}
+                />
+              </div>
+            </div>
+          </header>
+
+          {/* Desktop top bar */}
+          <header className="sticky top-0 z-30 hidden border-b border-line bg-canvas/80 px-8 py-4 backdrop-blur-xl lg:block">
+            <div className="mx-auto flex max-w-[1400px] items-center justify-between">
+              <div>
+                <h1 className="font-display text-2xl font-bold tracking-tight">
+                  {TABS.find((t) => t.id === tab)?.label}
+                </h1>
+                <p className="text-sm text-muted">
+                  {tab === 'spend' && `${api.txns.length} transactions · ${fmtAmt(api.monthSpend)} this month`}
+                  {tab === 'report' && 'Category breakdown, trends & insights'}
+                  {tab === 'plan' && 'Budgets, goals & limits'}
+                  {tab === 'setup' && 'Gemini AI, Sheets sync & shortcuts'}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="hidden items-center gap-6 xl:flex">
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-wider text-muted">Today</div>
+                    <div className="font-display text-lg font-bold text-accent">{fmtAmt(api.todaySpend)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-wider text-muted">This month</div>
+                    <div className="font-display text-lg font-bold">{fmtAmt(api.monthSpend)}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 rounded-full border border-line bg-white/4 px-3 py-1.5 text-xs text-muted">
+                  <Sparkles className="h-3 w-3 text-accent" />
+                  {syncLabel}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 px-4 py-5 lg:px-8 lg:py-6">
+            <div className="mx-auto max-w-[1400px]">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.22 }}
+                >
+                  {tab === 'spend' && (
+                    <SpendView
+                      api={api}
+                      onEdit={(id) => {
+                        setEditId(id)
+                        setAddOpen(true)
+                      }}
+                      onDelete={handleDelete}
+                    />
+                  )}
+                  {tab === 'report' && <ReportView api={api} />}
+                  {tab === 'plan' && <PlanView api={api} />}
+                  {tab === 'setup' && <SetupView api={api} showToast={showToast} />}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </main>
         </div>
-      </header>
+      </div>
 
-      <main className="px-4 py-5">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2 }}
-          >
-            {tab === 'spend' && (
-              <SpendView
-                api={api}
-                onEdit={(id) => {
-                  setEditId(id)
-                  setAddOpen(true)
-                }}
-                onDelete={handleDelete}
-              />
-            )}
-            {tab === 'report' && <ReportView api={api} />}
-            {tab === 'plan' && <PlanView api={api} />}
-            {tab === 'setup' && <SetupView api={api} showToast={showToast} />}
-          </motion.div>
-        </AnimatePresence>
-      </main>
-
+      {/* Mobile FAB */}
       <button
         type="button"
         aria-label="Add expense"
-        onClick={() => {
-          setQuickText('')
-          setQuickAuto(false)
-          setQuickSave(false)
-          setQuickOpen(true)
-        }}
-        className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-fg text-canvas shadow-lg active:scale-95"
+        onClick={openQuickAdd}
+        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent text-ink shadow-[0_8px_32px_rgba(232,197,71,0.4)] active:scale-95 lg:hidden"
       >
         <Plus className="h-6 w-6" strokeWidth={2.5} />
       </button>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-surface px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
-        <div className="mx-auto flex max-w-lg gap-1">
-          {tabs.map(({ id, label, icon: Icon }) => (
+      {/* Mobile bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-line bg-canvas/90 backdrop-blur-xl lg:hidden">
+        <div className="flex px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
+          {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               type="button"
               onClick={() => setTab(id)}
               className={cn(
-                'flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[10px] font-medium transition',
-                tab === id ? 'text-fg' : 'text-muted',
+                'flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[10px] font-semibold transition',
+                tab === id ? 'text-accent' : 'text-muted',
               )}
             >
               <Icon className="h-4 w-4" strokeWidth={tab === id ? 2.5 : 2} />
@@ -268,8 +390,8 @@ export default function App() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             className={cn(
-              'fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border border-line bg-surface px-4 py-2 text-sm shadow-lg',
-              toast.type === 'err' && 'text-bad',
+              'fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-line bg-canvas/95 px-5 py-2.5 text-sm shadow-xl backdrop-blur-xl lg:bottom-8',
+              toast.type === 'err' ? 'text-bad' : 'text-fg',
             )}
           >
             {toast.msg}

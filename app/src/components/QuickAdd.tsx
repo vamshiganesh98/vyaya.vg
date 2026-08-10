@@ -115,7 +115,7 @@ export function QuickAdd({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm sm:items-center"
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-md sm:items-center"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -126,18 +126,18 @@ export function QuickAdd({
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 24, opacity: 0 }}
           transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-          className="surface w-full max-w-lg rounded-t-3xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-3xl sm:p-6"
+          className="glass w-full max-w-lg rounded-t-3xl border border-line p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:rounded-3xl sm:p-6"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <div className="text-lg font-semibold tracking-tight">Add expense</div>
+              <div className="font-display text-lg font-bold tracking-tight">Add expense</div>
               <div className="text-xs text-muted">Type in plain English</div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/5 text-muted hover:text-fg"
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/8 text-muted hover:text-fg"
               aria-label="Close"
             >
               <X className="h-4 w-4" />
@@ -152,7 +152,7 @@ export function QuickAdd({
                 onChange={(e) => setText(e.target.value)}
                 placeholder='e.g. "spent ₹50 at Starbucks today" or "₹200 for Apple Care"'
                 rows={3}
-                className="w-full resize-none rounded-2xl border border-line bg-canvas px-4 py-3 text-[15px] outline-none ring-accent focus:ring-2"
+                className="w-full resize-none rounded-2xl border border-line bg-white/4 px-4 py-3 text-[15px] outline-none ring-accent focus:ring-2"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -183,13 +183,13 @@ export function QuickAdd({
 
           {phase === 'preview' && parsed && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-line bg-canvas p-4">
+              <div className="rounded-2xl border border-line bg-white/4 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-3xl font-semibold tracking-tight">{fmtAmt(parsed.amount)}</div>
+                    <div className="metric-value text-3xl">{fmtAmt(parsed.amount)}</div>
                     <div className="mt-1 text-sm text-muted">{parsed.note || 'Expense'}</div>
                   </div>
-                  <span className="rounded-full bg-black/5 px-2.5 py-1 text-xs font-medium">
+                  <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent">
                     {catInfo(parsed.category).i} {parsed.category}
                   </span>
                 </div>
@@ -215,10 +215,10 @@ export function QuickAdd({
                 className={cn(
                   'rounded-xl px-3 py-2 text-xs',
                   source === 'ai'
-                    ? 'flex items-center gap-2 bg-accent/10 text-accent'
+                    ? 'flex items-center gap-2 bg-accent/12 text-accent'
                     : warning
                       ? 'parse-warn-banner'
-                      : 'flex items-center gap-2 bg-black/5 text-muted',
+                      : 'flex items-center gap-2 bg-white/5 text-muted',
                 )}
               >
                 {source === 'ai' ? (

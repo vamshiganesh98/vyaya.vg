@@ -1,10 +1,35 @@
-import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Cloud, Eye, EyeOff, Key, Smartphone, Sparkles } from 'lucide-react'
 import { getGeminiKey, setGeminiKey } from '@/lib/ai-parse'
 import { parseCSV } from '@/lib/csv'
 import type { UseExpensesReturn } from '@/hooks/useExpenses'
 
 const SHORTCUT_URL = 'https://vamshiganesh98.github.io/vyaya.vg/?q='
+
+function StepCard({
+  step,
+  icon: Icon,
+  title,
+  children,
+}: {
+  step: number
+  icon: typeof Key
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex items-center gap-3 border-b border-line bg-white/[0.02] px-5 py-4">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/15 font-display text-sm font-bold text-accent">
+          {step}
+        </div>
+        <Icon className="h-4 w-4 text-accent" />
+        <h2 className="font-display text-sm font-bold">{title}</h2>
+      </div>
+      <div className="p-5">{children}</div>
+    </section>
+  )
+}
 
 export function SetupView({
   api,
@@ -23,23 +48,25 @@ export function SetupView({
   }
 
   return (
-    <div className="space-y-5">
-      <section className="card p-5">
-        <h2 className="text-sm font-semibold">How it works (GitHub Pages)</h2>
-        <p className="mt-2 text-xs leading-relaxed text-muted">
-          Everything runs in your browser on <strong className="text-fg">github.io</strong> — no Python server.
-          Expenses save locally, then sync to Google Sheets via Apps Script.
+    <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0">
+      <div className="card-glow p-5 lg:col-span-2">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-accent" />
+          <h2 className="font-display text-lg font-bold">Setup guide</h2>
+        </div>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Everything runs on <strong className="text-fg">github.io</strong> — no server needed. Expenses save locally,
+          then sync to Google Sheets via Apps Script.
         </p>
         <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs text-muted">
           <li>Add a free Gemini API key below (optional, for smart parsing)</li>
           <li>Paste your Apps Script URL under Google Sheets</li>
           <li>Set up the iPhone Shortcut (Back Tap → type expense → open URL)</li>
         </ol>
-      </section>
+      </div>
 
-      <section className="card p-5">
-        <h2 className="text-sm font-semibold">1. AI parsing (Gemini)</h2>
-        <p className="mt-1 text-xs text-muted">
+      <StepCard step={1} icon={Key} title="AI parsing (Gemini)">
+        <p className="text-xs text-muted">
           Free Google Gemini key for plain English like &quot;spent ₹50 at Starbucks&quot;. Stored only on this device.{' '}
           <a
             href="https://aistudio.google.com/apikey"
@@ -56,7 +83,7 @@ export function SetupView({
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder="AIza…"
-            className="w-full rounded-2xl border border-line bg-canvas py-2.5 pl-4 pr-10 text-sm outline-none"
+            className="w-full rounded-2xl border border-line bg-white/4 py-2.5 pl-4 pr-10 text-sm outline-none focus:ring-2 focus:ring-accent/30"
             autoComplete="off"
           />
           <button
@@ -75,21 +102,19 @@ export function SetupView({
           Requires your Apps Script URL (step 2) — github.io cannot call Gemini directly. After updating{' '}
           <code className="text-[10px]">google-apps-script.js</code>, redeploy a new version in Apps Script.
         </p>
-      </section>
+      </StepCard>
 
-      <section className="card p-5">
-        <h2 className="text-sm font-semibold">2. Google Sheets sync</h2>
-        <p className="mt-1 text-xs text-muted">
-          Deploy <code className="text-[10px]">google-apps-script.js</code> to your sheet (Extensions → Apps Script).
+      <StepCard step={2} icon={Cloud} title="Google Sheets sync">
+        <p className="text-xs text-muted">
+          Deploy <code className="text-[10px] text-accent">google-apps-script.js</code> to your sheet.
         </p>
         <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted">
           <li>Paste the latest script → save</li>
           <li>
-            <strong className="text-fg">One-time:</strong> run <code className="text-[10px]">authorizeVyayaOnce</code> → Allow
+            Run <code className="text-accent">authorizeVyayaOnce</code> → Allow
           </li>
           <li>
-            <strong className="text-fg">Deploy web app:</strong> Execute as <strong className="text-fg">Me</strong>, access{' '}
-            <strong className="text-fg">Anyone</strong> (not &quot;User accessing&quot; — that breaks AI)
+            Deploy: Execute as <strong className="text-fg">Me</strong>, access <strong className="text-fg">Anyone</strong>
           </li>
           <li>Deploy → New version</li>
         </ol>
@@ -97,7 +122,7 @@ export function SetupView({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="Apps Script web app URL"
-          className="mt-3 w-full rounded-2xl border border-line bg-canvas px-4 py-2.5 text-sm outline-none"
+          className="mt-3 w-full rounded-2xl border border-line bg-white/4 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/30"
         />
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -127,22 +152,20 @@ export function SetupView({
                 const sep = base.includes('?') ? '&' : '?'
                 const res = await fetch(`${base}${sep}action=pingExternal`)
                 const data = await res.json()
-                if (data.ok) showToast('AI permission OK — try an expense')
+                if (data.ok) showToast('AI permission OK')
                 else showToast(data.fix || data.error || 'Permission failed', 'err')
               } catch {
                 showToast('Could not reach Apps Script', 'err')
               }
             }}
           >
-            Test AI permission
+            Test permission
           </button>
         </div>
-      </section>
+      </StepCard>
 
-      <section className="card p-5">
-        <h2 className="text-sm font-semibold">3. iPhone Back Tap shortcut</h2>
-        <p className="mt-1 text-xs text-muted">Create a Shortcut with these actions:</p>
-        <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs text-muted">
+      <StepCard step={3} icon={Smartphone} title="iPhone Back Tap shortcut">
+        <ol className="list-decimal space-y-1.5 pl-4 text-xs text-muted">
           <li>
             <strong className="text-fg">Ask for Input</strong> — &quot;What did you spend?&quot;
           </li>
@@ -153,16 +176,13 @@ export function SetupView({
             <strong className="text-fg">Open URL</strong>:
           </li>
         </ol>
-        <pre className="mt-2 overflow-x-auto rounded-xl bg-canvas p-3 text-[10px] leading-relaxed text-muted">
+        <pre className="mt-3 overflow-x-auto rounded-xl bg-white/4 p-3 text-[10px] leading-relaxed text-muted">
           {`${SHORTCUT_URL}[URL Encoded Text]`}
         </pre>
-        <p className="mt-2 text-[11px] text-muted">
-          The app parses your text, saves it, and syncs to Sheets automatically — then shows Spend tab.
-        </p>
-      </section>
+      </StepCard>
 
-      <section className="card p-5">
-        <h2 className="text-sm font-semibold">Data</h2>
+      <section className="card p-5 lg:col-span-2">
+        <h2 className="font-display text-sm font-bold">Data</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           <label className="btn-ghost cursor-pointer">
             Import CSV
@@ -193,7 +213,9 @@ export function SetupView({
             Clear all
           </button>
         </div>
-        <p className="mt-2 text-xs text-muted">{api.txns.length} transactions · sync {api.syncState}</p>
+        <p className="mt-3 text-xs text-muted">
+          {api.txns.length} transactions · sync {api.syncState}
+        </p>
       </section>
     </div>
   )
