@@ -16,6 +16,7 @@ export function QuickAdd({
   open,
   initialText = '',
   autoSubmit = false,
+  autoSave = false,
   onClose,
   onSave,
   onToast,
@@ -23,6 +24,8 @@ export function QuickAdd({
   open: boolean
   initialText?: string
   autoSubmit?: boolean
+  /** Shortcut mode: parse and save without preview */
+  autoSave?: boolean
   onClose: () => void
   onSave: (payload: AddSheetPayload) => Promise<void>
   onToast: (msg: string, type?: string) => void
@@ -46,17 +49,24 @@ export function QuickAdd({
     setText(initialText)
     if (initialText && autoSubmit && !autoRan.current) {
       autoRan.current = true
-      void runParse(initialText)
+      void runParse(initialText, autoSave)
     } else {
       setTimeout(() => inputRef.current?.focus(), 120)
     }
-  }, [open, initialText, autoSubmit])
+  }, [open, initialText, autoSubmit, autoSave])
 
-  const runParse = async (raw: string) => {
+  const runParse = async (raw: string, saveImmediately = false) => {
     setError('')
     setPhase('parsing')
     try {
       const { result, source: src } = await parseExpenseText(raw)
+      if (saveImmediately) {
+        setPhase('saving')
+        await onSave(parsedToTxnPayload(result))
+        onToast(`Saved · ${result.note || result.category}`)
+        onClose()
+        return
+      }
       setParsed(result)
       setSource(src)
       setPhase('preview')

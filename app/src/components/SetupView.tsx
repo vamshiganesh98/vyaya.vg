@@ -4,6 +4,8 @@ import { getOpenAIKey, setOpenAIKey } from '@/lib/ai-parse'
 import { parseCSV } from '@/lib/csv'
 import type { UseExpensesReturn } from '@/hooks/useExpenses'
 
+const SHORTCUT_URL = 'https://vamshiganesh98.github.io/vyaya.vg/?q='
+
 export function SetupView({
   api,
   showToast,
@@ -23,10 +25,22 @@ export function SetupView({
   return (
     <div className="space-y-5">
       <section className="card p-5">
-        <h2 className="text-sm font-semibold">AI parsing</h2>
+        <h2 className="text-sm font-semibold">How it works (GitHub Pages)</h2>
+        <p className="mt-2 text-xs leading-relaxed text-muted">
+          Everything runs in your browser on <strong className="text-fg">github.io</strong> — no Python server.
+          Expenses save locally, then sync to Google Sheets via Apps Script.
+        </p>
+        <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs text-muted">
+          <li>Add OpenAI key below (optional, for smart parsing)</li>
+          <li>Paste your Apps Script URL under Google Sheets</li>
+          <li>Set up the iPhone Shortcut (Back Tap → type expense → open URL)</li>
+        </ol>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="text-sm font-semibold">1. AI parsing</h2>
         <p className="mt-1 text-xs text-muted">
-          Add your OpenAI API key so plain-English expenses parse accurately (Starbucks, Apple Care, metro parking, etc.).
-          Stored only on this device.
+          OpenAI key for plain English like &quot;spent ₹50 at Starbucks&quot;. Stored only on this device.
         </p>
         <div className="relative mt-3">
           <input
@@ -50,25 +64,15 @@ export function SetupView({
           Save API key
         </button>
         <p className="mt-2 text-[11px] text-muted">
-          Without a key, basic local parsing still works for simple phrases like &quot;spent 50 at cafe&quot;.
+          No key? Basic parsing still works: &quot;spent 50 at cafe&quot;.
         </p>
       </section>
 
       <section className="card p-5">
-        <h2 className="text-sm font-semibold">iPhone Shortcut</h2>
+        <h2 className="text-sm font-semibold">2. Google Sheets sync</h2>
         <p className="mt-1 text-xs text-muted">
-          After back-tap, open this URL with your text in the <code className="text-[10px]">q</code> parameter:
+          Deploy <code className="text-[10px]">google-apps-script.js</code> to your sheet (Extensions → Apps Script).
         </p>
-        <pre className="mt-3 overflow-x-auto rounded-xl bg-canvas p-3 text-[10px] leading-relaxed text-muted">
-          {`https://vamshiganesh98.github.io/vyaya.vg/?q=spent+50+at+Starbucks`}
-        </pre>
-        <p className="mt-2 text-[11px] text-muted">
-          Shortcut steps: Ask for Input → Open URL with encoded text → app parses, saves, syncs to Sheets.
-        </p>
-      </section>
-
-      <section className="card p-5">
-        <h2 className="text-sm font-semibold">Google Sheets sync</h2>
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
@@ -91,6 +95,28 @@ export function SetupView({
             Pull settings
           </button>
         </div>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="text-sm font-semibold">3. iPhone Back Tap shortcut</h2>
+        <p className="mt-1 text-xs text-muted">Create a Shortcut with these actions:</p>
+        <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-xs text-muted">
+          <li>
+            <strong className="text-fg">Ask for Input</strong> — &quot;What did you spend?&quot;
+          </li>
+          <li>
+            <strong className="text-fg">URL Encode</strong> the input
+          </li>
+          <li>
+            <strong className="text-fg">Open URL</strong>:
+          </li>
+        </ol>
+        <pre className="mt-2 overflow-x-auto rounded-xl bg-canvas p-3 text-[10px] leading-relaxed text-muted">
+          {`${SHORTCUT_URL}[URL Encoded Text]`}
+        </pre>
+        <p className="mt-2 text-[11px] text-muted">
+          The app parses your text, saves it, and syncs to Sheets automatically — then shows Spend tab.
+        </p>
       </section>
 
       <section className="card p-5">

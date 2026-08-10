@@ -22,6 +22,7 @@ export default function App() {
   const [quickOpen, setQuickOpen] = useState(false)
   const [quickText, setQuickText] = useState('')
   const [quickAuto, setQuickAuto] = useState(false)
+  const [quickSave, setQuickSave] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState>(null)
@@ -53,6 +54,7 @@ export default function App() {
     if (q?.trim()) {
       setQuickText(q.trim())
       setQuickAuto(true)
+      setQuickSave(true)
       setQuickOpen(true)
       return
     }
@@ -232,9 +234,11 @@ export default function App() {
         open={quickOpen}
         initialText={quickText}
         autoSubmit={quickAuto}
+        autoSave={quickSave}
         onClose={() => {
           setQuickOpen(false)
           setQuickAuto(false)
+          setQuickSave(false)
         }}
         onSave={handleSave}
         onToast={showToast}
