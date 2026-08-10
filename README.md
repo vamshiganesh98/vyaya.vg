@@ -134,7 +134,8 @@ Header row is optional — auto-detected. `Id` is optional on import (generated 
 |---|---|
 | **Frontend** | Vanilla HTML + CSS + JS — zero dependencies |
 | **Storage** | `localStorage` + Google Sheets merge sync |
-| **Offline** | Service Worker v5 — network-first for app shell |
+| **Offline** | Service Worker v5.1 — network-first for app shell |
+| **Motion** | GSAP 3 (CDN) — sheets, lists, hero count-up, view transitions |
 | **Fonts** | Syne + DM Sans |
 | **Hosting** | GitHub Pages |
 
