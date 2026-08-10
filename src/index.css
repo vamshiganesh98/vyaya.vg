@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Syne", sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #080810;
+  --color-panel: #0d0d1a;
+  --color-panel-2: #131320;
+  --color-panel-3: #1a1a2a;
+  --color-gold: #e8c547;
+  --color-gold-2: #c9a227;
+  --color-gold-3: #f5d76e;
+  --color-foam: #ede9f8;
+  --color-mute: #7270a0;
+  --color-mute-2: #a09ec0;
+  --color-good: #3ddc84;
+  --color-bad: #ff6b6b;
+  --color-info: #5b9cf6;
+  --color-accent: #9b6dff;
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-ink);
+  color: var(--color-foam);
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 85% -10%, rgba(232, 197, 71, 0.12), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 0% 100%, rgba(91, 156, 246, 0.08), transparent 50%),
+    linear-gradient(180deg, #080810 0%, #0a0a14 100%);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Magic-style shimmer CTA */
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.shimmer-btn {
+  background-image: linear-gradient(
+    110deg,
+    var(--color-gold-2) 0%,
+    var(--color-gold-3) 35%,
+    #fff6c2 50%,
+    var(--color-gold-3) 65%,
+    var(--color-gold-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-btn { animation: none; }
+  * { scroll-behavior: auto !important; }
+}
