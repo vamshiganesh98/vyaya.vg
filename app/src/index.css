@@ -1,135 +1,99 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Bricolage Grotesque", sans-serif;
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --color-ink: #07070c;
-  --color-panel: #101018;
-  --color-panel-2: #161622;
-  --color-panel-3: #1e1e2e;
-  --color-gold: #e8c547;
-  --color-gold-2: #c9a227;
-  --color-gold-3: #f5d76e;
-  --color-foam: #f2eefc;
-  --color-mute: #7a7898;
-  --color-mute-2: #a8a6c4;
-  --color-good: #3ddc84;
-  --color-bad: #ff6b6b;
-  --color-info: #5b9cf6;
-  --color-accent: #9b6dff;
-  --color-warn: #ff8c42;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-fg: #111111;
+  --color-muted: #6b6b6b;
+  --color-line: #e8e8e4;
+  --color-accent: #111111;
+  --color-good: #15803d;
+  --color-bad: #dc2626;
+  --color-warn: #ca8a04;
 }
 
-html[data-theme="light"] {
-  --color-ink: #f3f1ea;
-  --color-panel: #ffffff;
-  --color-panel-2: #f7f5ef;
-  --color-panel-3: #ece8de;
-  --color-foam: #14121c;
-  --color-mute: #6b687c;
-  --color-mute-2: #8a8799;
+html[data-theme="dark"] {
+  --color-canvas: #0a0a0a;
+  --color-surface: #141414;
+  --color-fg: #f5f5f5;
+  --color-muted: #9a9a9a;
+  --color-line: #262626;
+  --color-accent: #f5f5f5;
+  --color-good: #4ade80;
+  --color-bad: #f87171;
+  --color-warn: #facc15;
 }
 
-html, body, #root { min-height: 100%; }
+html, body, #root {
+  min-height: 100%;
+}
 
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--color-ink);
-  color: var(--color-foam);
-  overflow-x: hidden;
+  background: var(--color-canvas);
+  color: var(--color-fg);
+  -webkit-font-smoothing: antialiased;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse 90% 55% at 100% -8%, rgba(232, 197, 71, 0.16), transparent 55%),
-    radial-gradient(ellipse 70% 50% at -15% 105%, rgba(91, 156, 246, 0.12), transparent 52%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(155, 109, 255, 0.05), transparent 60%),
-    linear-gradient(180deg, #07070c 0%, #0b0b14 100%);
+.surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
 }
 
-html[data-theme="light"] body::before {
-  background:
-    radial-gradient(ellipse 90% 55% at 100% -8%, rgba(232, 197, 71, 0.22), transparent 55%),
-    radial-gradient(ellipse 70% 50% at -15% 105%, rgba(91, 156, 246, 0.12), transparent 52%),
-    linear-gradient(180deg, #efece4 0%, #f7f5ef 100%);
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 1.25rem;
 }
 
-.font-display { font-family: var(--font-display); }
+.text-muted { color: var(--color-muted); }
+.text-fg { color: var(--color-fg); }
+.text-good { color: var(--color-good); }
+.text-bad { color: var(--color-bad); }
+.bg-canvas { background: var(--color-canvas); }
+.border-line { border-color: var(--color-line); }
+.ring-accent { --tw-ring-color: color-mix(in srgb, var(--color-accent) 25%, transparent); }
+.text-accent { color: var(--color-accent); }
 
-.noise {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background: var(--color-fg);
+  color: var(--color-canvas);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: opacity 0.15s;
 }
+.btn-primary:disabled { opacity: 0.4; }
+.btn-primary:active { opacity: 0.85; }
 
-.glass {
-  background: color-mix(in srgb, var(--color-panel) 78%, transparent);
-  border: 1px solid color-mix(in srgb, white 8%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-html[data-theme="light"] .glass {
-  background: color-mix(in srgb, white 82%, transparent);
-  border: 1px solid color-mix(in srgb, black 6%, transparent);
-  box-shadow: 0 18px 40px rgba(20, 18, 28, 0.06);
-}
-
-.beam {
-  position: relative;
-  overflow: hidden;
-}
-.beam::after {
-  content: "";
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(120deg, transparent 20%, rgba(232,197,71,0.55), transparent 80%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  animation: beam-spin 6s linear infinite;
-  opacity: 0.7;
-}
-@keyframes beam-spin {
-  to { transform: rotate(360deg); }
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid var(--color-line);
+  background: transparent;
+  color: var(--color-fg);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
-@keyframes shimmer {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
-.shimmer-btn {
-  background-image: linear-gradient(
-    110deg,
-    var(--color-gold-2) 0%,
-    var(--color-gold-3) 35%,
-    #fff6c2 50%,
-    var(--color-gold-3) 65%,
-    var(--color-gold-2) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 2.8s linear infinite;
-  color: #120f08;
+.tab-active {
+  background: var(--color-fg);
+  color: var(--color-canvas);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shimmer-btn, .beam::after { animation: none; }
-  * { scroll-behavior: auto !important; }
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
-/* custom scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-mute) 50%, transparent); border-radius: 99px; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 99px; }
