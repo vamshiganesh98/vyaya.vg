@@ -4,13 +4,25 @@
  * SETUP:
  * 1. Open your Google Sheet → Extensions → Apps Script
  * 2. Replace the entire Code.gs contents with this file
- * 3. Click Deploy → Manage deployments → Edit → New version → Deploy
+ * 3. ONE-TIME: select authorizeVyayaOnce in the toolbar → Run → Allow permissions
+ *    (Required for AI parsing — grants external_request to call OpenAI)
+ * 4. Deploy → Manage deployments → Edit → New version → Deploy
  *    (Same URL, no need to update the app)
  *
  * SHEET STRUCTURE:
  *   "Jul 2026", "Jun 2026", ...  — one sheet per month, auto-created
  *   "Settings"                   — four visual tables: Budget, Cat Budgets, Goals, Recurring
  */
+
+/** Run once from the Apps Script editor (▶ Run) to grant UrlFetchApp / OpenAI access. */
+function authorizeVyayaOnce() {
+  const res = UrlFetchApp.fetch('https://api.openai.com/v1/models', {
+    method: 'get',
+    headers: { Authorization: 'Bearer test' },
+    muteHttpExceptions: true,
+  });
+  Logger.log('Authorization OK — HTTP ' + res.getResponseCode() + ' (401 expected without a real key)');
+}
 
 const SETTINGS_SHEET = 'Settings';
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
