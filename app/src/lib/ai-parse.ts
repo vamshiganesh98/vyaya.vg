@@ -1,5 +1,6 @@
 import { normCat, parseNaturalNote, parseTags, suggestCat, type Category } from '@/lib/types'
 import { nowTime, today, yesterday } from '@/lib/dates'
+import { backendParse, usePythonBackend } from '@/lib/backend'
 
 export type ParsedExpense = {
   amount: number
@@ -150,6 +151,15 @@ async function parseExpenseOpenAI(text: string, apiKey: string): Promise<ParsedE
 export async function parseExpenseText(text: string): Promise<{ result: ParsedExpense; source: 'ai' | 'local' }> {
   const trimmed = text.trim()
   if (!trimmed) throw new Error('Enter an expense')
+
+  if (usePythonBackend()) {
+    try {
+      const { result, source } = await backendParse(trimmed)
+      return { result, source }
+    } catch (e) {
+      console.warn('Python API parse failed, falling back to local', e)
+    }
+  }
 
   const apiKey = getOpenAIKey()
   if (apiKey) {

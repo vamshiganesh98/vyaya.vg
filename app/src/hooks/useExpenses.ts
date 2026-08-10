@@ -18,6 +18,14 @@ import {
   type Txn,
 } from '@/lib/types'
 import { fingerprint } from '@/lib/utils'
+import {
+  backendAppendExpense,
+  backendDeleteExpense,
+  backendFetchRows,
+  backendUpdateExpense,
+  sheetRowToTxn,
+  usePythonBackend,
+} from '@/lib/backend'
 
 type SyncState = 'local' | 'ok' | 'err' | 'syncing'
 type CatBudgets = Record<string, number>
@@ -212,6 +220,38 @@ export function useExpenses() {
   }, [])
 
   const syncTxn = useCallback(async (action: string, t: Txn, oldKey?: string) => {
+    if (usePythonBackend()) {
+      try {
+        const payload = {
+          id: t.id,
+          date: t.date,
+          time: t.time,
+          category: t.category,
+          amount: t.amount,
+          payment: t.payment,
+          note: t.note || '',
+          split: t.split || 1,
+          paid_count: t.paidCount || 0,
+          location: t.location || '',
+          tags: t.tags || [],
+        }
+        if (action === 'append') {
+          await backendAppendExpense(payload)
+          return true
+        }
+        if (action === 'update') {
+          await backendUpdateExpense(payload)
+          return true
+        }
+        if (action === 'delete') {
+          await backendDeleteExpense(payload)
+          return true
+        }
+      } catch {
+        return false
+      }
+    }
+
     const url = sheetUrlRef.current
     if (!url) return false
     const body: Record<string, unknown> = {
@@ -295,6 +335,29 @@ export function useExpenses() {
   }, [applyRemoteSettings])
 
   const syncAll = useCallback(async () => {
+    if (usePythonBackend()) {
+      setSyncState('syncing')
+      try {
+        const { rows } = await backendFetchRows()
+        const remote = rows.map(sheetRowToTxn).filter((t) => t.amount > 0 && t.date)
+        if (remote.length) {
+          const merged = mergeRemote(txnsRef.current, remote as Txn[])
+          persist(merged)
+        }
+        const t = new Date().toLocaleTimeString('en-US', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+        setSyncState('ok')
+        setLastSync(t)
+        return 'ok'
+      } catch {
+        setSyncState('err')
+        return 'err'
+      }
+    }
+
     const url = sheetUrlRef.current
     if (!url) return 'no-url'
     setSyncState('syncing')
@@ -489,17 +552,17 @@ export function useExpenses() {
 
   const addTxn = useCallback(
     async (partial: Omit<Txn, 'id' | 'pending'> & { id?: string; pending?: boolean }) => {
-      const url = sheetUrlRef.current
+      const hasSync = usePythonBackend() || sheetUrlRef.current
       const t: Txn = {
         ...partial,
         id: partial.id || genId(),
         tags: partial.tags || [],
         split: partial.split || 1,
         paidCount: partial.paidCount || 0,
-        pending: partial.pending ?? !!url,
+        pending: partial.pending ?? !!hasSync,
       }
       persist([t, ...txnsRef.current])
-      if (url) {
+      if (hasSync) {
         const ok = await syncTxn('append', t)
         if (ok) {
           const cleared = txnsRef.current.map((x) =>
