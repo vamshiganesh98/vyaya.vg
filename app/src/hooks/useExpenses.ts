@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { parseCSV } from '@/lib/csv'
 import {
   currentMonthKey,
   genId,
@@ -6,31 +7,72 @@ import {
   monthKey,
   normDate,
   today,
-} from '@/lib/utils'
+} from '@/lib/dates'
 import {
   DEFAULT_SHEET_URL,
   normCat,
+  parseTags,
+  type Goal,
+  type Recurring,
+  type ThemePref,
   type Txn,
 } from '@/lib/types'
+import { fingerprint } from '@/lib/utils'
+
+type SyncState = 'local' | 'ok' | 'err' | 'syncing'
+type CatBudgets = Record<string, number>
+type MoodLog = Record<string, number>
 
 function loadTxns(): Txn[] {
   try {
     const raw = JSON.parse(localStorage.getItem('vyaya_txns') || '[]') as Txn[]
-    return raw.map((t) => ({
-      ...t,
-      id: t.id || genId(),
-      date: normDate(t.date),
-      tags: t.tags || [],
-      split: t.split || 1,
-      paidCount: t.paidCount || 0,
-    }))
+    let migrated = false
+    const next = raw.map((t) => {
+      const date = normDate(t.date)
+      const id = t.id || genId()
+      if (date !== t.date || !t.id) migrated = true
+      return {
+        ...t,
+        id,
+        date,
+        tags: t.tags || [],
+        split: t.split || 1,
+        paidCount: t.paidCount || 0,
+      }
+    })
+    if (migrated) {
+      try {
+        localStorage.setItem('vyaya_txns', JSON.stringify(next))
+      } catch {
+        /* quota */
+      }
+    }
+    return next
   } catch {
     return []
   }
 }
 
-function fingerprint(t: Pick<Txn, 'date' | 'time' | 'amount' | 'category' | 'note'>) {
-  return [t.date, t.time || '00:00', Math.round(t.amount || 0), t.category || '', (t.note || '').trim().toLowerCase()].join('|')
+function loadJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw == null) return fallback
+    return JSON.parse(raw) as T
+  } catch {
+    return fallback
+  }
+}
+
+function writePending(n: number) {
+  try {
+    localStorage.setItem('vyaya_pending', String(Math.max(0, n)))
+  } catch {
+    /* quota */
+  }
+}
+
+function sortTxns(list: Txn[]) {
+  return [...list].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))
 }
 
 function mergeRemote(local: Txn[], remote: Txn[]) {
@@ -43,7 +85,14 @@ function mergeRemote(local: Txn[], remote: Txn[]) {
     const hit = (r.id && byId.get(r.id)) || byFp.get(fingerprint(r))
     if (hit) {
       matched.add(hit.id)
-      merged.push({ ...r, id: hit.id || r.id, pending: false })
+      merged.push({
+        ...r,
+        id: hit.id || r.id,
+        originalAmount: hit.originalAmount,
+        originalCurrency: hit.originalCurrency,
+        recurring: hit.recurring,
+        pending: false,
+      })
     } else {
       merged.push({ ...r, pending: false })
     }
@@ -55,7 +104,7 @@ function mergeRemote(local: Txn[], remote: Txn[]) {
     if (!hitRemote) merged.push(t)
   })
 
-  return merged.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time))
+  return sortTxns(merged)
 }
 
 function mapRemoteRow(r: Record<string, string>): Txn | null {
@@ -71,41 +120,100 @@ function mapRemoteRow(r: Record<string, string>): Txn | null {
     note: r.Note || '',
     split: parseInt(r.Split || '1', 10) || 1,
     paidCount: parseInt(r.Paid || '0', 10) || 0,
-    tags: (r.Tags || '').match(/#[\w-]+/g) || [],
+    tags: parseTags(r.Tags || r.Note || ''),
     location: r.Location || '',
     pending: false,
   }
 }
 
+function txnImportKey(t: Pick<Txn, 'date' | 'time' | 'amount' | 'category'>) {
+  return `${t.date}|${t.time}|${t.amount}|${t.category}`
+}
+
 export function useExpenses() {
   const [txns, setTxns] = useState<Txn[]>(() => loadTxns())
-  const [budget, setBudgetState] = useState(() => parseFloat(localStorage.getItem('vyaya_budget') || '0') || 0)
-  const [sheetUrl, setSheetUrlState] = useState(() => localStorage.getItem('vyaya_url') || DEFAULT_SHEET_URL)
-  const [syncState, setSyncState] = useState<'local' | 'ok' | 'err' | 'syncing'>('local')
+  const [budget, setBudgetState] = useState(
+    () => parseFloat(localStorage.getItem('vyaya_budget') || '0') || 0,
+  )
+  const [catBudgets, setCatBudgetsState] = useState<CatBudgets>(
+    () => loadJson<CatBudgets>('vyaya_cat_budgets', {}),
+  )
+  const [recurring, setRecurringState] = useState<Recurring[]>(
+    () => loadJson<Recurring[]>('vyaya_recurring', []),
+  )
+  const [goals, setGoalsState] = useState<Goal[]>(() => loadJson<Goal[]>('vyaya_goals', []))
+  const [moodLog, setMoodLogState] = useState<MoodLog>(() => loadJson<MoodLog>('vyaya_mood', {}))
+  const [themePref, setThemePrefState] = useState<ThemePref>(
+    () => (localStorage.getItem('vyaya_theme') as ThemePref) || 'dark',
+  )
+  const [sheetUrl, setSheetUrlState] = useState(
+    () => localStorage.getItem('vyaya_url') || DEFAULT_SHEET_URL,
+  )
+  const [syncState, setSyncState] = useState<SyncState>('local')
   const [lastSync, setLastSync] = useState('')
   const [booting, setBooting] = useState(true)
+  const [settingsSyncLbl, setSettingsSyncLbl] = useState('')
+
+  const txnsRef = useRef(txns)
+  const sheetUrlRef = useRef(sheetUrl)
+  const budgetRef = useRef(budget)
+  const catBudgetsRef = useRef(catBudgets)
+  const goalsRef = useRef(goals)
+  const recurringRef = useRef(recurring)
+
+  useEffect(() => {
+    txnsRef.current = txns
+  }, [txns])
+  useEffect(() => {
+    sheetUrlRef.current = sheetUrl
+  }, [sheetUrl])
+  useEffect(() => {
+    budgetRef.current = budget
+  }, [budget])
+  useEffect(() => {
+    catBudgetsRef.current = catBudgets
+  }, [catBudgets])
+  useEffect(() => {
+    goalsRef.current = goals
+  }, [goals])
+  useEffect(() => {
+    recurringRef.current = recurring
+  }, [recurring])
 
   const persist = useCallback((next: Txn[]) => {
-    setTxns(next)
+    const sorted = sortTxns(next)
+    setTxns(sorted)
+    txnsRef.current = sorted
+    const pendingN = sorted.filter((t) => t.pending).length
+    writePending(pendingN)
     try {
-      localStorage.setItem('vyaya_txns', JSON.stringify(next))
+      localStorage.setItem('vyaya_txns', JSON.stringify(sorted))
     } catch {
       /* quota */
     }
   }, [])
 
-  const setBudget = useCallback((n: number) => {
-    setBudgetState(n)
-    localStorage.setItem('vyaya_budget', String(n))
+  const saveCatBudgets = useCallback((next: CatBudgets) => {
+    setCatBudgetsState(next)
+    catBudgetsRef.current = next
+    localStorage.setItem('vyaya_cat_budgets', JSON.stringify(next))
   }, [])
 
-  const setSheetUrl = useCallback((url: string) => {
-    setSheetUrlState(url)
-    localStorage.setItem('vyaya_url', url)
+  const saveRecurring = useCallback((next: Recurring[]) => {
+    setRecurringState(next)
+    recurringRef.current = next
+    localStorage.setItem('vyaya_recurring', JSON.stringify(next))
+  }, [])
+
+  const saveGoals = useCallback((next: Goal[]) => {
+    setGoalsState(next)
+    goalsRef.current = next
+    localStorage.setItem('vyaya_goals', JSON.stringify(next))
   }, [])
 
   const syncTxn = useCallback(async (action: string, t: Txn, oldKey?: string) => {
-    if (!sheetUrl) return false
+    const url = sheetUrlRef.current
+    if (!url) return false
     const body: Record<string, unknown> = {
       action,
       Id: t.id,
@@ -122,75 +230,426 @@ export function useExpenses() {
     }
     if (oldKey) body.oldKey = oldKey
     try {
-      const res = await fetch(sheetUrl, { method: 'POST', body: JSON.stringify(body) })
+      const res = await fetch(url, { method: 'POST', body: JSON.stringify(body) })
       return res.ok
     } catch {
       return false
     }
-  }, [sheetUrl])
+  }, [])
 
-  const addTxn = useCallback(async (partial: Omit<Txn, 'id' | 'pending'> & { id?: string }) => {
-    const t: Txn = {
-      ...partial,
-      id: partial.id || genId(),
-      pending: !!sheetUrl,
+  const pushSettings = useCallback(async () => {
+    const url = sheetUrlRef.current
+    if (!url) return false
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'writeSettings',
+          settings: {
+            monthly_budget: budgetRef.current,
+            cat_budgets: catBudgetsRef.current,
+            goals: goalsRef.current,
+            recurring: recurringRef.current,
+          },
+        }),
+      })
+      return res.ok
+    } catch {
+      return false
     }
-    persist([t, ...txns])
-    if (sheetUrl) {
-      const ok = await syncTxn('append', t)
-      if (ok) {
-        const cleared = [ { ...t, pending: false }, ...txns ]
-        persist(cleared)
-      }
+  }, [])
+
+  const applyRemoteSettings = useCallback((s: Record<string, unknown>) => {
+    if (s.monthly_budget !== undefined) {
+      const n = parseFloat(String(s.monthly_budget)) || 0
+      setBudgetState(n)
+      budgetRef.current = n
+      localStorage.setItem('vyaya_budget', String(n))
     }
-    return t
-  }, [persist, sheetUrl, syncTxn, txns])
+    if (s.cat_budgets && typeof s.cat_budgets === 'object') {
+      const next = s.cat_budgets as CatBudgets
+      saveCatBudgets(next)
+    }
+    if (Array.isArray(s.goals)) {
+      saveGoals(s.goals as Goal[])
+    }
+    if (Array.isArray(s.recurring)) {
+      saveRecurring(s.recurring as Recurring[])
+    }
+  }, [saveCatBudgets, saveGoals, saveRecurring])
 
-  const updateTxn = useCallback(async (id: string, patch: Partial<Txn>) => {
-    const prev = txns.find((t) => t.id === id)
-    if (!prev) return
-    const next = { ...prev, ...patch }
-    const oldKey = `${prev.date}|${prev.time}|${Math.round(prev.amount)}|${prev.category}`
-    persist(txns.map((t) => (t.id === id ? next : t)))
-    if (sheetUrl) await syncTxn('update', next, oldKey)
-  }, [persist, sheetUrl, syncTxn, txns])
-
-  const deleteTxn = useCallback(async (id: string) => {
-    const t = txns.find((x) => x.id === id)
-    persist(txns.filter((x) => x.id !== id))
-    if (t && sheetUrl) await syncTxn('delete', t)
-  }, [persist, sheetUrl, syncTxn, txns])
+  const pullSettings = useCallback(async () => {
+    const url = sheetUrlRef.current
+    if (!url) return false
+    try {
+      const res = await fetch(`${url}?action=readSettings`)
+      const data = await res.json()
+      if (data.error || !data.settings) return false
+      applyRemoteSettings(data.settings as Record<string, unknown>)
+      const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      setSettingsSyncLbl(`Settings synced ${ts}`)
+      return true
+    } catch {
+      return false
+    }
+  }, [applyRemoteSettings])
 
   const syncAll = useCallback(async () => {
-    if (!sheetUrl) return 'no-url'
+    const url = sheetUrlRef.current
+    if (!url) return 'no-url'
     setSyncState('syncing')
+    const ctrl = new AbortController()
+    const timeout = setTimeout(() => ctrl.abort(), 12000)
     try {
-      const res = await fetch(`${sheetUrl}?action=read`)
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      const remote = ((data.rows || []) as Record<string, string>[])
+      const [txnRes, settRes] = await Promise.all([
+        fetch(`${url}?action=read`, { signal: ctrl.signal }),
+        fetch(`${url}?action=readSettings`, { signal: ctrl.signal }),
+      ])
+      clearTimeout(timeout)
+
+      const txnData = await txnRes.json()
+      if (txnData.error) throw new Error(txnData.error)
+      const remote = ((txnData.rows || []) as Record<string, string>[])
         .map(mapRemoteRow)
         .filter(Boolean) as Txn[]
       if (remote.length) {
-        const merged = mergeRemote(txns, remote)
+        const merged = mergeRemote(txnsRef.current, remote)
         persist(merged)
       }
+
+      try {
+        const settData = await settRes.json()
+        if (!settData.error && settData.settings) {
+          applyRemoteSettings(settData.settings as Record<string, unknown>)
+          const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          setSettingsSyncLbl(`Settings synced ${ts}`)
+        }
+      } catch {
+        /* settings optional */
+      }
+
+      const t = new Date().toLocaleTimeString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
       setSyncState('ok')
-      setLastSync(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }))
+      setLastSync(t)
       return 'ok'
     } catch {
+      clearTimeout(timeout)
       setSyncState('err')
       return 'err'
     }
-  }, [persist, sheetUrl, txns])
+  }, [applyRemoteSettings, persist])
+
+  const setBudget = useCallback(
+    (n: number) => {
+      setBudgetState(n)
+      budgetRef.current = n
+      localStorage.setItem('vyaya_budget', String(n))
+      void pushSettings()
+    },
+    [pushSettings],
+  )
+
+  const setCatBudgets = useCallback(
+    (next: CatBudgets) => {
+      saveCatBudgets(next)
+      void pushSettings()
+    },
+    [pushSettings, saveCatBudgets],
+  )
+
+  const setCatBudget = useCallback(
+    (cat: string, n: number) => {
+      const next = { ...catBudgetsRef.current, [cat]: n }
+      if (!n) {
+        delete next[cat]
+      }
+      saveCatBudgets(next)
+      void pushSettings()
+    },
+    [pushSettings, saveCatBudgets],
+  )
+
+  const setSheetUrl = useCallback((url: string) => {
+    setSheetUrlState(url)
+    sheetUrlRef.current = url
+    localStorage.setItem('vyaya_url', url)
+  }, [])
+
+  const setThemePref = useCallback((pref: ThemePref) => {
+    setThemePrefState(pref)
+    localStorage.setItem('vyaya_theme', pref)
+  }, [])
+
+  const setGoals = useCallback(
+    (next: Goal[]) => {
+      saveGoals(next)
+      void pushSettings()
+    },
+    [pushSettings, saveGoals],
+  )
+
+  const addGoal = useCallback(
+    (partial: Omit<Goal, 'id' | 'saved'> & { id?: string; saved?: number }) => {
+      const g: Goal = {
+        id: partial.id || genId(),
+        name: partial.name,
+        target: partial.target,
+        saved: partial.saved || 0,
+      }
+      saveGoals([...goalsRef.current, g])
+      void pushSettings()
+      return g
+    },
+    [pushSettings, saveGoals],
+  )
+
+  const addToGoal = useCallback(
+    (id: string, amt: number) => {
+      if (!amt) return
+      saveGoals(
+        goalsRef.current.map((g) =>
+          g.id === id ? { ...g, saved: (g.saved || 0) + amt } : g,
+        ),
+      )
+      void pushSettings()
+    },
+    [pushSettings, saveGoals],
+  )
+
+  const removeGoal = useCallback(
+    (id: string) => {
+      saveGoals(goalsRef.current.filter((g) => g.id !== id))
+      void pushSettings()
+    },
+    [pushSettings, saveGoals],
+  )
+
+  const setRecurring = useCallback(
+    (next: Recurring[]) => {
+      saveRecurring(next)
+      void pushSettings()
+    },
+    [pushSettings, saveRecurring],
+  )
+
+  const addRecurring = useCallback(
+    (partial: Omit<Recurring, 'id'> & { id?: string }) => {
+      const r: Recurring = { ...partial, id: partial.id || genId() }
+      saveRecurring([...recurringRef.current, r])
+      void pushSettings()
+      return r
+    },
+    [pushSettings, saveRecurring],
+  )
+
+  const updateRecurring = useCallback(
+    (id: string, patch: Partial<Recurring>) => {
+      saveRecurring(
+        recurringRef.current.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      )
+      void pushSettings()
+    },
+    [pushSettings, saveRecurring],
+  )
+
+  const removeRecurring = useCallback(
+    (id: string) => {
+      saveRecurring(recurringRef.current.filter((r) => r.id !== id))
+      void pushSettings()
+    },
+    [pushSettings, saveRecurring],
+  )
+
+  const markRecurringLogged = useCallback(
+    (id: string, date: string) => {
+      saveRecurring(
+        recurringRef.current.map((r) =>
+          r.id === id ? { ...r, lastLogged: date } : r,
+        ),
+      )
+      void pushSettings()
+    },
+    [pushSettings, saveRecurring],
+  )
+
+  const setMood = useCallback(
+    (date: string, rating: number) => {
+      setMoodLogState((prev) => {
+        const next = { ...prev, [date]: rating }
+        localStorage.setItem('vyaya_mood', JSON.stringify(next))
+        return next
+      })
+    },
+    [],
+  )
+
+  const addTxn = useCallback(
+    async (partial: Omit<Txn, 'id' | 'pending'> & { id?: string; pending?: boolean }) => {
+      const url = sheetUrlRef.current
+      const t: Txn = {
+        ...partial,
+        id: partial.id || genId(),
+        tags: partial.tags || [],
+        split: partial.split || 1,
+        paidCount: partial.paidCount || 0,
+        pending: partial.pending ?? !!url,
+      }
+      persist([t, ...txnsRef.current])
+      if (url) {
+        const ok = await syncTxn('append', t)
+        if (ok) {
+          const cleared = txnsRef.current.map((x) =>
+            x.id === t.id ? { ...x, pending: false } : x,
+          )
+          persist(cleared)
+          return { ...t, pending: false }
+        }
+      }
+      return t
+    },
+    [persist, syncTxn],
+  )
+
+  const updateTxn = useCallback(
+    async (id: string, patch: Partial<Txn>) => {
+      const prev = txnsRef.current.find((t) => t.id === id)
+      if (!prev) return
+      const next = { ...prev, ...patch }
+      const oldKey = `${prev.date}|${prev.time}|${Math.round(prev.amount)}|${prev.category}`
+      persist(txnsRef.current.map((t) => (t.id === id ? next : t)))
+      if (sheetUrlRef.current) await syncTxn('update', next, oldKey)
+    },
+    [persist, syncTxn],
+  )
+
+  /** Immediate local delete; returns deleted txn (and index) for undo. Call syncDelete later. */
+  const deleteTxn = useCallback(
+    (id: string): { txn: Txn; index: number } | null => {
+      const index = txnsRef.current.findIndex((x) => x.id === id)
+      if (index === -1) return null
+      const txn = txnsRef.current[index]
+      persist(txnsRef.current.filter((x) => x.id !== id))
+      return { txn, index }
+    },
+    [persist],
+  )
+
+  const syncDelete = useCallback(
+    async (t: Txn) => {
+      if (!sheetUrlRef.current) return false
+      return syncTxn('delete', t)
+    },
+    [syncTxn],
+  )
+
+  const restoreTxn = useCallback(
+    (t: Txn, index?: number) => {
+      const list = [...txnsRef.current]
+      if (list.some((x) => x.id === t.id)) return
+      if (typeof index === 'number' && index >= 0 && index <= list.length) {
+        list.splice(index, 0, t)
+        persist(list)
+      } else {
+        persist([t, ...list])
+      }
+    },
+    [persist],
+  )
+
+  const settle = useCallback(
+    (id: string, delta: number) => {
+      const t = txnsRef.current.find((x) => x.id === id)
+      if (!t) return
+      const paidCount = Math.max(0, Math.min(t.split - 1, (t.paidCount || 0) + delta))
+      const next = { ...t, paidCount }
+      persist(txnsRef.current.map((x) => (x.id === id ? next : x)))
+      if (sheetUrlRef.current) void syncTxn('update', next)
+    },
+    [persist, syncTxn],
+  )
+
+  const settleAll = useCallback(
+    (id: string) => {
+      const t = txnsRef.current.find((x) => x.id === id)
+      if (!t) return
+      const next = { ...t, paidCount: Math.max(0, t.split - 1) }
+      persist(txnsRef.current.map((x) => (x.id === id ? next : x)))
+      if (sheetUrlRef.current) void syncTxn('update', next)
+    },
+    [persist, syncTxn],
+  )
+
+  const importRows = useCallback(
+    (rows: Txn[]) => {
+      if (!rows.length) return 0
+      const existing = new Set(txnsRef.current.map(txnImportKey))
+      let added = 0
+      const next = [...txnsRef.current]
+      rows.forEach((r) => {
+        const key = txnImportKey(r)
+        if (existing.has(key)) return
+        next.push({
+          ...r,
+          id: r.id || genId(),
+          date: normDate(r.date),
+          tags: r.tags || [],
+          split: r.split || 1,
+          paidCount: r.paidCount || 0,
+          pending: false,
+        })
+        existing.add(key)
+        added++
+      })
+      if (added) persist(next)
+      return added
+    },
+    [persist],
+  )
+
+  const clearAllData = useCallback(() => {
+    persist([])
+    writePending(0)
+  }, [persist])
+
+  const autoLoadCSV = useCallback(async () => {
+    if (txnsRef.current.length > 0) return false
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}vyaya-vg.csv`)
+      if (!res.ok) return false
+      const text = await res.text()
+      const rows = parseCSV(text)
+      if (!rows.length) return false
+      persist(rows)
+      return true
+    } catch {
+      return false
+    }
+  }, [persist])
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      if (sheetUrl) await syncAll()
+      try {
+        localStorage.setItem('vyaya_data_ver', '2')
+      } catch {
+        /* ignore */
+      }
+      if (sheetUrlRef.current) {
+        await syncAll()
+      }
+      if (!cancelled && txnsRef.current.length === 0) {
+        await autoLoadCSV()
+      }
       if (!cancelled) setBooting(false)
     })()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
+    // Boot once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -213,19 +672,50 @@ export function useExpenses() {
   return {
     txns,
     budget,
-    setBudget,
+    catBudgets,
+    recurring,
+    goals,
+    moodLog,
+    themePref,
     sheetUrl,
-    setSheetUrl,
     syncState,
     lastSync,
     booting,
+    settingsSyncLbl,
+    setBudget,
+    setCatBudgets,
+    setCatBudget,
+    setSheetUrl,
+    setThemePref,
+    setGoals,
+    addGoal,
+    addToGoal,
+    removeGoal,
+    setRecurring,
+    addRecurring,
+    updateRecurring,
+    removeRecurring,
+    markRecurringLogged,
+    setMood,
     addTxn,
     updateTxn,
     deleteTxn,
-    syncAll,
+    syncDelete,
+    restoreTxn,
+    settle,
+    settleAll,
     persist,
+    syncTxn,
+    pushSettings,
+    pullSettings,
+    syncAll,
+    importRows,
+    clearAllData,
+    autoLoadCSV,
     monthSpend,
     todaySpend,
     pending,
   }
 }
+
+export type UseExpensesReturn = ReturnType<typeof useExpenses>
