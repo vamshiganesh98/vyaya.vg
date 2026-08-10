@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Cloud, Key, Smartphone, Sparkles } from 'lucide-react'
+import { Cloud, Eye, EyeOff, Key, Smartphone, Sparkles } from 'lucide-react'
 import { getGeminiKey, setGeminiKey } from '@/lib/ai-parse'
 import { parseCSV } from '@/lib/csv'
 import type { UseExpensesReturn } from '@/hooks/useExpenses'
@@ -58,11 +58,16 @@ export function SetupView({
           Everything runs on <strong className="text-fg">github.io</strong> — no server needed. Expenses save locally,
           then sync to Google Sheets via Apps Script.
         </p>
+        <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs text-muted">
+          <li>Add a free Gemini API key below (optional, for smart parsing)</li>
+          <li>Paste your Apps Script URL under Google Sheets</li>
+          <li>Set up the iPhone Shortcut (Back Tap → type expense → open URL)</li>
+        </ol>
       </div>
 
       <StepCard step={1} icon={Key} title="AI parsing (Gemini)">
         <p className="text-xs text-muted">
-          Free Google Gemini key for plain English like &quot;spent ₹50 at Starbucks&quot;.{' '}
+          Free Google Gemini key for plain English like &quot;spent ₹50 at Starbucks&quot;. Stored only on this device.{' '}
           <a
             href="https://aistudio.google.com/apikey"
             target="_blank"
@@ -78,20 +83,25 @@ export function SetupView({
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             placeholder="AIza…"
-            className="w-full rounded-2xl border border-line bg-white/4 py-2.5 pl-4 pr-16 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+            className="w-full rounded-2xl border border-line bg-white/4 py-2.5 pl-4 pr-10 text-sm outline-none focus:ring-2 focus:ring-accent/30"
             autoComplete="off"
           />
           <button
             type="button"
             onClick={() => setShowKey((s) => !s)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted"
+            aria-label={showKey ? 'Hide key' : 'Show key'}
           >
-            {showKey ? 'Hide' : 'Show'}
+            {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
         <button type="button" className="btn-primary mt-3 w-full" onClick={saveKey}>
           Save API key
         </button>
+        <p className="mt-2 text-[11px] text-muted">
+          Requires your Apps Script URL (step 2) — github.io cannot call Gemini directly. After updating{' '}
+          <code className="text-[10px]">google-apps-script.js</code>, redeploy a new version in Apps Script.
+        </p>
       </StepCard>
 
       <StepCard step={2} icon={Cloud} title="Google Sheets sync">
@@ -103,7 +113,9 @@ export function SetupView({
           <li>
             Run <code className="text-accent">authorizeVyayaOnce</code> → Allow
           </li>
-          <li>Deploy: Execute as <strong className="text-fg">Me</strong>, access <strong className="text-fg">Anyone</strong></li>
+          <li>
+            Deploy: Execute as <strong className="text-fg">Me</strong>, access <strong className="text-fg">Anyone</strong>
+          </li>
           <li>Deploy → New version</li>
         </ol>
         <input
