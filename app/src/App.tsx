@@ -48,9 +48,9 @@ export default function App() {
       <div className="relative flex min-h-dvh flex-col items-center justify-center gap-5">
         <AuroraBackdrop />
         <div className="font-display relative z-10 text-4xl font-black tracking-tight">
-          Vyaya<span className="text-gold">.</span>vg
+          Vyaya<span className="text-accent">.</span>vg
         </div>
-        <div className="relative z-10 h-8 w-8 animate-spin rounded-full border-2 border-white/10 border-t-gold" />
+        <div className="relative z-10 h-8 w-8 animate-spin rounded-full border-2 border-ink/10 border-t-accent" />
         <div className="relative z-10 text-xs text-mute">Syncing…</div>
       </div>
     )
@@ -63,7 +63,7 @@ export default function App() {
         <header className="mb-6 flex items-center justify-between">
           <div>
             <div className="font-display text-2xl font-black tracking-tight">
-              Vyaya<span className="text-gold">.</span>vg
+              Vyaya<span className="text-accent">.</span>vg
             </div>
             <div className="mt-1 flex items-center gap-2 text-[10px] text-mute">
               <span
@@ -71,7 +71,7 @@ export default function App() {
                   'inline-block h-1.5 w-1.5 rounded-full',
                   api.syncState === 'ok' && 'bg-good shadow-[0_0_6px_var(--color-good)]',
                   api.syncState === 'err' && 'bg-bad',
-                  api.syncState === 'syncing' && 'animate-pulse bg-gold',
+                  api.syncState === 'syncing' && 'animate-pulse bg-accent',
                   api.syncState === 'local' && 'bg-mute',
                 )}
               />
@@ -83,7 +83,7 @@ export default function App() {
                     ? 'syncing…'
                     : 'local'}
               {api.pending > 0 && (
-                <span className="rounded-md border border-gold/30 bg-gold/10 px-1.5 py-0.5 text-[9px] font-bold text-gold">
+                <span className="rounded-md border border-accent/30 bg-accent/10 px-1.5 py-0.5 text-[9px] font-bold text-accent">
                   {api.pending} pending
                 </span>
               )}
@@ -93,7 +93,7 @@ export default function App() {
             type="button"
             aria-label="Add expense"
             onClick={() => setAddOpen(true)}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-3 to-gold-2 text-lg font-bold text-ink shadow-[0_8px_24px_rgba(232,197,71,0.3)] transition active:scale-90"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-3 to-accent text-lg font-bold text-ink shadow-[0_8px_24px_rgba(15,159,138,0.35)] transition active:scale-90"
           >
             <Plus className="h-5 w-5" strokeWidth={2.5} />
           </button>
@@ -128,7 +128,7 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/5 bg-ink/90 backdrop-blur-xl">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-ink/8 bg-white/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg gap-1 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {(
             [
@@ -143,10 +143,10 @@ export default function App() {
               onClick={() => setView(name)}
               className={cn(
                 'flex flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium transition',
-                view === name ? 'text-gold' : 'text-mute',
+                view === name ? 'text-accent' : 'text-mute',
               )}
             >
-              <span className={cn('flex h-8 w-8 items-center justify-center rounded-lg', view === name && 'bg-gold/15')}>
+              <span className={cn('flex h-8 w-8 items-center justify-center rounded-lg', view === name && 'bg-accent/12')}>
                 <Icon className="h-4 w-4" />
               </span>
               {name}
@@ -177,7 +177,7 @@ export default function App() {
             exit={{ opacity: 0, y: 10 }}
             className={cn(
               'fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-2xl border px-4 py-2.5 text-sm font-medium shadow-xl',
-              'border-white/10 bg-panel text-foam',
+              'border-ink/10 bg-white text-foam',
               toast.type === 'ok' && 'border-good/30 text-good',
               toast.type === 'err' && 'border-bad/30 text-bad',
             )}
@@ -222,25 +222,25 @@ function HomeView({
   return (
     <div className="space-y-5">
       <BlurFade>
-        <div className="relative overflow-hidden rounded-[28px] border border-white/8 bg-panel/80 p-6 shadow-2xl backdrop-blur-md">
-          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gold/15 blur-3xl" />
+        <div className="relative overflow-hidden rounded-[28px] border border-ink/8 bg-white/75 p-6 shadow-[0_20px_50px_rgba(7,22,28,0.08)] backdrop-blur-md">
+          <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
           <div className="relative">
             <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-mute">
               {period === 'today' ? 'Today' : period === 'week' ? 'This week' : period === 'month' ? 'This month' : 'All time'}
             </div>
             <div className="mt-2 font-display text-5xl font-black tracking-tight">
-              <span className="mr-1 text-3xl text-gold">₹</span>
+              <span className="mr-1 text-3xl text-accent">₹</span>
               <NumberTicker value={total} />
             </div>
             {api.budget > 0 && (
               <div className="mt-4">
                 <div className="mb-1.5 flex justify-between text-[10px] font-semibold uppercase tracking-wider text-mute">
                   <span>{fmtAmt(api.monthSpend)} of {fmtAmt(api.budget)}</span>
-                  <span className="text-gold">{budgetPct}%</span>
+                  <span className="text-accent">{budgetPct}%</span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div className="h-1.5 overflow-hidden rounded-full bg-ink/8">
                   <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-gold to-gold-2"
+                    className="h-full rounded-full bg-gradient-to-r from-accent to-accent-2"
                     initial={{ width: 0 }}
                     animate={{ width: `${budgetPct}%` }}
                     transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
@@ -248,7 +248,7 @@ function HomeView({
                 </div>
               </div>
             )}
-            <div className="mt-5 grid grid-cols-3 gap-2 border-t border-white/5 pt-4 text-center">
+            <div className="mt-5 grid grid-cols-3 gap-2 border-t border-ink/6 pt-4 text-center">
               <div>
                 <div className="text-[9px] uppercase tracking-wider text-mute">Txns</div>
                 <div className="mt-1 text-sm font-bold">{list.length}</div>
@@ -269,7 +269,7 @@ function HomeView({
       </BlurFade>
 
       <BlurFade delay={0.08}>
-        <div className="flex gap-1 rounded-2xl border border-white/6 bg-panel/70 p-1">
+        <div className="flex gap-1 rounded-2xl border border-ink/8 bg-white/70 p-1">
           {(['today', 'week', 'month', 'all'] as Period[]).map((p) => (
             <button
               key={p}
@@ -277,7 +277,7 @@ function HomeView({
               onClick={() => setPeriod(p)}
               className={cn(
                 'flex-1 rounded-xl px-2 py-2 text-xs font-medium capitalize transition',
-                period === p ? 'bg-gold font-bold text-ink shadow-md' : 'text-mute',
+                period === p ? 'bg-accent font-bold text-white shadow-md' : 'text-mute',
               )}
             >
               {p}
@@ -290,8 +290,8 @@ function HomeView({
         <div className="space-y-2">
           <div className="px-1 text-[10px] font-bold uppercase tracking-[0.12em] text-mute">Recent</div>
           {list.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-white/10 px-6 py-14 text-center text-sm text-mute">
-              <div className="font-display mb-2 text-3xl text-gold/50">₹</div>
+            <div className="rounded-3xl border border-dashed border-ink/12 px-6 py-14 text-center text-sm text-mute">
+              <div className="font-display mb-2 text-3xl text-accent/40">₹</div>
               No expenses yet. Tap + to add one.
             </div>
           ) : (
@@ -304,7 +304,7 @@ function HomeView({
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                  className="rounded-2xl border border-white/6 bg-panel/75 p-3.5 backdrop-blur-sm"
+                  className="rounded-2xl border border-ink/8 bg-white/80 p-3.5 backdrop-blur-sm"
                   onClick={() => setOpenTxn(open ? null : t.id)}
                 >
                   <div className="flex items-start gap-3">
@@ -332,7 +332,7 @@ function HomeView({
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="mt-3 flex gap-2 border-t border-white/5 pt-3">
+                        <div className="mt-3 flex gap-2 border-t border-ink/6 pt-3">
                           <button
                             type="button"
                             className="flex items-center gap-1 rounded-xl border border-bad/20 bg-bad/10 px-3 py-2 text-xs font-semibold text-bad"
@@ -378,8 +378,8 @@ function AnalyticsView({ txns, budget }: { txns: Txn[]; budget: number }) {
         <p className="mt-1 text-sm text-mute">{monthLabel(mk)} overview</p>
       </BlurFade>
       <BlurFade delay={0.05}>
-        <div className="rounded-3xl border border-gold/20 bg-gradient-to-br from-gold/10 to-transparent p-5">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-gold">Spent</div>
+        <div className="rounded-3xl border border-accent/25 bg-gradient-to-br from-white to-accent/10 p-5 shadow-[0_16px_40px_rgba(7,22,28,0.06)]">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-accent">Spent</div>
           <div className="font-display mt-1 text-3xl font-black">{fmtAmt(total)}</div>
           {budget > 0 && <div className="mt-1 text-xs text-mute">of {fmtAmt(budget)} budget</div>}
           {prevTotal > 0 && (
@@ -396,14 +396,14 @@ function AnalyticsView({ txns, budget }: { txns: Txn[]; budget: number }) {
           const pct = total ? Math.round((amt / total) * 100) : 0
           return (
             <BlurFade key={cat} delay={0.06 + i * 0.04}>
-              <div className="rounded-2xl border border-white/6 bg-panel/70 p-4">
+              <div className="rounded-2xl border border-ink/8 bg-white/85 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold">
                     <span>{ci.i}</span> {cat}
                   </div>
                   <div className="text-sm font-bold">{fmtAmt(amt)}</div>
                 </div>
-                <div className="h-1 overflow-hidden rounded-full bg-white/8">
+                <div className="h-1 overflow-hidden rounded-full bg-ink/8">
                   <div className="h-full rounded-full" style={{ width: `${pct}%`, background: ci.c }} />
                 </div>
                 <div className="mt-1 text-[10px] text-mute">{pct}%</div>
@@ -412,7 +412,7 @@ function AnalyticsView({ txns, budget }: { txns: Txn[]; budget: number }) {
           )
         })}
         {!sorted.length && (
-          <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-mute">
+          <div className="rounded-2xl border border-dashed border-ink/12 p-10 text-center text-sm text-mute">
             No spend this month yet
           </div>
         )}
@@ -446,7 +446,7 @@ function SettingsView({
               value={budgetInput}
               onChange={(e) => setBudgetInput(e.target.value)}
               placeholder="Monthly budget"
-              className="flex-1 rounded-2xl border border-white/8 bg-panel-2 px-4 py-3 text-sm outline-none focus:border-gold"
+              className="flex-1 rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm outline-none focus:border-accent"
             />
             <ShimmerButton
               type="button"
@@ -469,7 +469,7 @@ function SettingsView({
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Google Apps Script Web App URL"
-            className="w-full rounded-2xl border border-white/8 bg-panel-2 px-4 py-3 text-sm outline-none focus:border-gold"
+            className="w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm outline-none focus:border-accent"
           />
           <ShimmerButton
             type="button"
@@ -487,7 +487,7 @@ function SettingsView({
               const r = await api.syncAll()
               showToast(r === 'ok' ? 'Synced' : 'Sync failed', r === 'ok' ? 'ok' : 'err')
             }}
-            className="flex w-full items-center gap-3 rounded-2xl border border-white/6 bg-panel/80 px-4 py-3.5 text-left"
+            className="flex w-full items-center gap-3 rounded-2xl border border-ink/8 bg-white/90 px-4 py-3.5 text-left"
           >
             <Cloud className="h-4 w-4 text-info" />
             <div className="flex-1">
@@ -499,9 +499,9 @@ function SettingsView({
       </BlurFade>
 
       <BlurFade delay={0.15}>
-        <div className="rounded-2xl border border-white/6 bg-panel/70 px-4 py-3.5">
+        <div className="rounded-2xl border border-ink/8 bg-white/90 px-4 py-3.5">
           <div className="text-sm font-semibold">Vyaya.vg</div>
-          <div className="text-[10px] text-mute">v6.0 · React · Motion · Magic UI accents</div>
+          <div className="text-[10px] text-mute">v6.1 · React · Motion · light mint UI</div>
         </div>
       </BlurFade>
     </div>
@@ -535,20 +535,20 @@ function AddSheet({
         exit={{ y: '40%', opacity: 0 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-white/10 bg-panel p-5 pb-10 md:rounded-[24px]"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-ink/10 bg-white p-5 pb-10 md:rounded-[24px]"
       >
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-white/15 md:hidden" />
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-ink/15 md:hidden" />
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-xl font-extrabold">
-            <span className="text-gold">Add</span> Expense
+            <span className="text-accent">Add</span> Expense
           </h2>
           <button type="button" onClick={onClose} className="rounded-lg p-2 text-mute hover:text-foam" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="mb-4 flex items-center rounded-2xl border border-white/8 bg-panel-2 px-4 focus-within:border-gold">
-          <span className="font-display text-2xl font-bold text-gold">₹</span>
+        <div className="mb-4 flex items-center rounded-2xl border border-ink/10 bg-panel-2 px-4 focus-within:border-accent">
+          <span className="font-display text-2xl font-bold text-accent">₹</span>
           <input
             autoFocus
             type="number"
@@ -569,11 +569,11 @@ function AddSheet({
               onClick={() => setCat(c.k)}
               className={cn(
                 'rounded-xl border px-1 py-2.5 text-center transition',
-                cat === c.k ? 'border-gold bg-gold/10 shadow-[0_0_0_2px_rgba(232,197,71,0.15)]' : 'border-white/6 bg-panel-2',
+                cat === c.k ? 'border-accent bg-accent/10 shadow-[0_0_0_2px_rgba(15,159,138,0.15)]' : 'border-ink/8 bg-panel-2',
               )}
             >
               <div className="text-lg">{c.i}</div>
-              <div className={cn('mt-0.5 text-[9px] font-semibold', cat === c.k ? 'text-gold' : 'text-mute')}>{c.k.split(' ')[0]}</div>
+              <div className={cn('mt-0.5 text-[9px] font-semibold', cat === c.k ? 'text-accent' : 'text-mute')}>{c.k.split(' ')[0]}</div>
             </button>
           ))}
         </div>
@@ -587,7 +587,7 @@ function AddSheet({
               onClick={() => setPay(p.k)}
               className={cn(
                 'rounded-xl border px-3 py-3 text-sm font-semibold transition',
-                pay === p.k ? 'border-gold bg-gold/10 text-gold' : 'border-white/6 bg-panel-2 text-mute',
+                pay === p.k ? 'border-accent bg-accent/10 text-accent' : 'border-ink/8 bg-panel-2 text-mute',
               )}
             >
               {p.i} {p.k}
@@ -600,14 +600,14 @@ function AddSheet({
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="What was this for?"
-          className="mb-5 w-full rounded-2xl border border-white/8 bg-panel-2 px-4 py-3 text-sm outline-none focus:border-gold"
+          className="mb-5 w-full rounded-2xl border border-ink/10 bg-panel-2 px-4 py-3 text-sm outline-none focus:border-accent"
         />
 
         <div className="flex gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-2xl border border-white/8 bg-panel-2 py-3.5 text-sm font-semibold text-mute"
+            className="flex-1 rounded-2xl border border-ink/10 bg-panel-2 py-3.5 text-sm font-semibold text-mute"
           >
             Cancel
           </button>

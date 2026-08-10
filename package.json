@@ -1,11 +1,11 @@
 {
   "name": "vyaya-vg",
   "private": true,
-  "version": "6.0.0",
+  "version": "6.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/publish-pages.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

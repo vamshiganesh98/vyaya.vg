@@ -1,20 +1,23 @@
 # Vyaya.vg
 
-Personal expense tracker — **React + Tailwind + Motion**, with Magic UI–style accents.
+Personal expense tracker — **React + Vite + Tailwind + Motion**.
 
 **Live:** https://vamshiganesh98.github.io/vyaya.vg/
 
-## Stack
+## What libraries are actually used
 
-| | |
+| Package | Role |
 |---|---|
-| UI | React 19 + Vite + Tailwind CSS v4 |
-| Motion | Motion (Framer) + GSAP available |
-| Accents | Magic UI–inspired NumberTicker, BlurFade, ShimmerButton, Aurora |
-| Sync | Google Apps Script (`google-apps-script.js`) |
-| Offline | PWA service worker |
+| **React 19** + **Vite** | App framework / build |
+| **Tailwind CSS v4** | Styling |
+| **Motion** (`motion`) | UI animations |
+| **Lucide React** | Icons |
+| **clsx** + **tailwind-merge** | Class helpers |
+| **GSAP** | Installed; Motion is what the UI uses today |
 
-Preferred registries for future work are documented in [`.cursor/skills/ui-component-libraries/SKILL.md`](.cursor/skills/ui-component-libraries/SKILL.md) (Magic UI, React Bits, SmoothUI, Unlumen, shadcn).
+**Not installed from registries:** Magic UI, React Bits, SmoothUI, Unlumen. Earlier work only added *hand-rolled* accents inspired by those (NumberTicker, BlurFade, ShimmerButton, Aurora). That’s why the first React ship still looked like the old black/gold app.
+
+Preferred registries for future apps: [`.cursor/skills/ui-component-libraries/SKILL.md`](.cursor/skills/ui-component-libraries/SKILL.md).
 
 ## Develop
 
@@ -23,18 +26,23 @@ npm install
 npm run dev
 ```
 
+Source lives in `app/`. Legacy vanilla app is under `legacy/`.
+
 ## Build / GitHub Pages
 
 ```bash
 npm run build
 ```
 
-Deploy the `dist/` folder to GitHub Pages (base path `/vyaya.vg/`).
+`npm run build` compiles the React app, then `scripts/publish-pages.mjs` copies the production files to the **repo root** (`index.html` + `assets/`) so GitHub Pages can serve them when the source is **Deploy from a branch → `/` (root)**.
+
+If the live site still shows the old UI after a merge:
+
+1. Hard-refresh or clear site data for `vamshiganesh98.github.io`
+2. Remove the home-screen PWA shortcut and re-add it (old service workers cache the previous shell)
+
+Optional: Repo → Settings → Pages → set source to **GitHub Actions** (workflow already uploads `dist/`).
 
 ## Sheets sync
 
 Paste `google-apps-script.js` into Apps Script and deploy as a Web App. Save the URL in Settings.
-
-## Legacy
-
-The previous vanilla HTML/JS app is archived under `legacy/` for reference.
