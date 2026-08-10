@@ -64,7 +64,8 @@ export function SetupView({
           Save API key
         </button>
         <p className="mt-2 text-[11px] text-muted">
-          No key? Basic parsing still works: &quot;spent 50 at cafe&quot;.
+          Requires your Apps Script URL (step 2) — github.io cannot call OpenAI directly. After updating{' '}
+          <code className="text-[10px]">google-apps-script.js</code>, redeploy a new version in Apps Script.
         </p>
       </section>
 
