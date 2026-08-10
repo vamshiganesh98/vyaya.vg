@@ -358,10 +358,59 @@ function doPost(e) {
   try { body = JSON.parse(e.postData.contents); }
   catch(err) { return jsonResponse({ error: 'Invalid JSON' }); }
   if (body.action === 'writeSettings') return writeSettings(body.settings);
+  if (body.action === 'parse')         return parseExpenseAI(body);
   if (body.action === 'append')        return appendTransaction(body);
   if (body.action === 'update')        return updateTransaction(body);
   if (body.action === 'delete')        return deleteTransaction(body);
   return jsonResponse({ error: 'Unknown action: ' + body.action });
+}
+
+// ── AI parse (OpenAI proxy — avoids browser CORS on github.io) ──
+
+function parseExpenseAI(body) {
+  const text = String(body.text || '').trim();
+  const apiKey = String(body.apiKey || '').trim();
+  if (!text) return jsonResponse({ error: 'Missing text' });
+  if (!apiKey) return jsonResponse({ error: 'Missing apiKey' });
+
+  const tz = 'Asia/Kolkata';
+  const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+  const cats = 'Food, Travel & Commute, Bills, Q-Commerce, Entertainment, Investments, Shopping, Others';
+
+  const payload = {
+    model: 'gpt-4o-mini',
+    temperature: 0.1,
+    response_format: { type: 'json_object' },
+    messages: [
+      {
+        role: 'system',
+        content: 'You parse Indian personal expense sentences into JSON. Today is ' + today + ' (IST). Categories: ' + cats + '. Payment: UPI or Credit Card. Return only JSON with keys: amount (number INR), category, note (short merchant/description), payment, date (YYYY-MM-DD), location (optional), tags (string array), recurring (boolean), split (integer 1-10). Infer category from context.'
+      },
+      { role: 'user', content: text }
+    ]
+  };
+
+  try {
+    const res = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + apiKey },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    const code = res.getResponseCode();
+    const data = JSON.parse(res.getContentText());
+    if (code !== 200) {
+      const msg = (data.error && data.error.message) ? data.error.message : 'OpenAI request failed';
+      return jsonResponse({ error: msg });
+    }
+    const raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (!raw) return jsonResponse({ error: 'Empty AI response' });
+    const parsed = JSON.parse(raw);
+    return jsonResponse({ result: parsed, source: 'ai' });
+  } catch (err) {
+    return jsonResponse({ error: String(err) });
+  }
 }
 
 function appendTransaction(body) {
