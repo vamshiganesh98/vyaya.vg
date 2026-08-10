@@ -1,23 +1,26 @@
 # Vyaya.vg
 
-Personal expense tracker — **React + Vite + Tailwind + Motion**.
+Personal expense tracker — **React + Vite + Tailwind + Motion**, full feature parity with the original app, premium dark UI.
 
 **Live:** https://vamshiganesh98.github.io/vyaya.vg/
 
-## What libraries are actually used
+## Features restored
 
-| Package | Role |
+- Add / **Edit** expenses, smart search, period filters, analytics drill-down
+- Splits + settle, tags, location, multi-currency FX, natural-language note parse
+- Insights, recurring due banner, savings goals, category budgets
+- Full Analytics: Overview (donut), Categories, Trends, Year in Review
+- Theme Dark / Light / Auto · CSV import/export · Sheets sync + settings sync
+- Undo delete · end-of-day mood · URL shortcut params · PWA
+
+## Stack
+
+| | |
 |---|---|
-| **React 19** + **Vite** | App framework / build |
-| **Tailwind CSS v4** | Styling |
-| **Motion** (`motion`) | UI animations |
-| **Lucide React** | Icons |
-| **clsx** + **tailwind-merge** | Class helpers |
-| **GSAP** | Installed; Motion is what the UI uses today |
-
-**Not installed from registries:** Magic UI, React Bits, SmoothUI, Unlumen. Earlier work only added *hand-rolled* accents inspired by those (NumberTicker, BlurFade, ShimmerButton, Aurora). That’s why the first React ship still looked like the old black/gold app.
-
-Preferred registries for future apps: [`.cursor/skills/ui-component-libraries/SKILL.md`](.cursor/skills/ui-component-libraries/SKILL.md).
+| UI | React 19 + Vite + Tailwind CSS v4 |
+| Motion | Motion (Framer) |
+| Accents | NumberTicker, BlurFade, ShimmerButton, Aurora, Donut |
+| Sync | Google Apps Script (`google-apps-script.js`) |
 
 ## Develop
 
@@ -26,7 +29,7 @@ npm install
 npm run dev
 ```
 
-Source lives in `app/`. Legacy vanilla app is under `legacy/`.
+Source: `app/`. Legacy vanilla: `legacy/`.
 
 ## Build / GitHub Pages
 
@@ -34,15 +37,4 @@ Source lives in `app/`. Legacy vanilla app is under `legacy/`.
 npm run build
 ```
 
-`npm run build` compiles the React app, then `scripts/publish-pages.mjs` copies the production files to the **repo root** (`index.html` + `assets/`) so GitHub Pages can serve them when the source is **Deploy from a branch → `/` (root)**.
-
-If the live site still shows the old UI after a merge:
-
-1. Hard-refresh or clear site data for `vamshiganesh98.github.io`
-2. Remove the home-screen PWA shortcut and re-add it (old service workers cache the previous shell)
-
-Optional: Repo → Settings → Pages → set source to **GitHub Actions** (workflow already uploads `dist/`).
-
-## Sheets sync
-
-Paste `google-apps-script.js` into Apps Script and deploy as a Web App. Save the URL in Settings.
+Publishes production files to the **repo root** so branch Pages (`/`) works. After merge, hard-refresh or clear site data if an old PWA shell is cached.

@@ -2,38 +2,38 @@ import { useEffect, useRef } from 'react'
 import { useInView, useMotionValue, useSpring } from 'motion/react'
 import { cn } from '@/lib/utils'
 
-/** Magic UI–style number ticker */
 export function NumberTicker({
   value,
   className,
-  prefix = '',
+  decimals = 0,
 }: {
   value: number
   className?: string
-  prefix?: string
+  decimals?: number
 }) {
   const ref = useRef<HTMLSpanElement>(null)
-  const motionValue = useMotionValue(0)
-  const spring = useSpring(motionValue, { damping: 40, stiffness: 120 })
-  const inView = useInView(ref, { once: true, margin: '0px' })
+  const motionVal = useMotionValue(0)
+  const spring = useSpring(motionVal, { stiffness: 90, damping: 28 })
+  const inView = useInView(ref, { once: true, margin: '-20px' })
 
   useEffect(() => {
-    if (inView) motionValue.set(value)
-  }, [inView, motionValue, value])
+    if (inView) motionVal.set(value)
+  }, [inView, motionVal, value])
 
   useEffect(() => {
-    const unsub = spring.on('change', (latest) => {
-      if (ref.current) {
-        ref.current.textContent = prefix + Math.round(latest).toLocaleString('en-IN')
-      }
+    const unsub = spring.on('change', (v) => {
+      if (!ref.current) return
+      ref.current.textContent = Math.round(v).toLocaleString('en-IN', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })
     })
     return unsub
-  }, [spring, prefix])
+  }, [decimals, spring])
 
-  // Keep updating when value changes after first view
-  useEffect(() => {
-    motionValue.set(value)
-  }, [motionValue, value])
-
-  return <span ref={ref} className={cn('tabular-nums', className)} />
+  return (
+    <span ref={ref} className={cn('tabular-nums', className)}>
+      0
+    </span>
+  )
 }
