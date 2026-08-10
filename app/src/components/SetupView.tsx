@@ -74,6 +74,13 @@ export function SetupView({
         <p className="mt-1 text-xs text-muted">
           Deploy <code className="text-[10px]">google-apps-script.js</code> to your sheet (Extensions → Apps Script).
         </p>
+        <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted">
+          <li>Paste the latest script → save</li>
+          <li>
+            <strong className="text-fg">One-time:</strong> select <code className="text-[10px]">authorizeVyayaOnce</code> → Run → Allow permissions (needed for AI)
+          </li>
+          <li>Deploy → New version</li>
+        </ol>
         <input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
