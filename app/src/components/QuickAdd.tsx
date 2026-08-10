@@ -231,7 +231,7 @@ export function QuickAdd({
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5" />
-                    Parsed locally — add OpenAI key in Setup for smarter parsing
+                    Parsed locally — add Gemini key in Setup for smarter parsing
                   </>
                 )}
               </div>

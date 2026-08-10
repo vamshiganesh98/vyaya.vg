@@ -22,14 +22,14 @@ export type ParseResult = {
 }
 
 
-export function getOpenAIKey(): string {
-  return localStorage.getItem('vyaya_openai_key') || ''
+export function getGeminiKey(): string {
+  return localStorage.getItem('vyaya_gemini_key') || ''
 }
 
-export function setOpenAIKey(key: string) {
+export function setGeminiKey(key: string) {
   const trimmed = key.trim()
-  if (trimmed) localStorage.setItem('vyaya_openai_key', trimmed)
-  else localStorage.removeItem('vyaya_openai_key')
+  if (trimmed) localStorage.setItem('vyaya_gemini_key', trimmed)
+  else localStorage.removeItem('vyaya_gemini_key')
 }
 
 function getSheetUrl(): string {
@@ -124,7 +124,7 @@ export function parseExpenseLocal(text: string): ParsedExpense | null {
   }
 }
 
-/** Route OpenAI via Apps Script — browsers on github.io cannot call api.openai.com directly (CORS). */
+/** Route Gemini via Apps Script — browsers on github.io cannot call the Gemini API directly (CORS). */
 async function parseExpenseViaAppsScript(text: string, apiKey: string): Promise<ParsedExpense | null> {
   const sheetUrl = getSheetUrl()
   if (!sheetUrl) throw new Error('Add your Apps Script URL in Setup → Google Sheets sync')
@@ -143,7 +143,7 @@ export async function parseExpenseText(text: string): Promise<ParseResult> {
   const trimmed = text.trim()
   if (!trimmed) throw new Error('Enter an expense')
 
-  const apiKey = getOpenAIKey()
+  const apiKey = getGeminiKey()
   if (apiKey) {
     try {
       const ai = await parseExpenseViaAppsScript(trimmed, apiKey)
