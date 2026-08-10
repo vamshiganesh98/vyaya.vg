@@ -14,7 +14,7 @@
 
 const SETTINGS_SHEET = 'Settings';
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const TX_HEADERS  = ['Date','Time','Category','Amount','Mode of Payment','Note','Split','Paid','Location','Tags'];
+const TX_HEADERS  = ['Date','Time','Category','Amount','Mode of Payment','Note','Split','Paid','Location','Tags','Id'];
 const CATS_LIST   = ['Food','Travel & Commute','Bills','Q-Commerce','Entertainment','Investments','Shopping','Others'];
 
 // Fixed row positions for each section in the Settings sheet
@@ -67,7 +67,7 @@ function formatMonthSheet(sheet) {
    .setBorder(false, false, true, false, false, false, C.GOLD, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
   sheet.setFrozenRows(1);
   sheet.setRowHeight(1, 32);
-  [100,70,130,90,140,200,55,55,150,120].forEach((w,i) => sheet.setColumnWidth(i+1, w));
+  [100,70,130,90,140,200,55,55,150,120,110].forEach((w,i) => sheet.setColumnWidth(i+1, w));
   sheet.setTabColor(C.GOLD);
 }
 
@@ -372,12 +372,13 @@ function appendTransaction(body) {
   sheet.appendRow([
     body['Date'], body['Time'], body['Category'], body['Amount'],
     body['Mode of Payment'], body['Note'], body['Split']||1,
-    body['Paid']||0, body['Location']||'', body['Tags']||''
+    body['Paid']||0, body['Location']||'', body['Tags']||'', body['Id']||''
   ]);
   return jsonResponse({ ok: true });
 }
 
 function findRow(ss, body) {
+  const id = body['Id'] || body.Id || '';
   const key = body.oldKey || [body['Date'], body['Time'], Math.round(parseFloat(body['Amount'])||0), body['Category']].join('|');
   const name = monthSheetName(body['Date'] || key.split('|')[0]);
   const toSearch = name
@@ -391,7 +392,15 @@ function findRow(ss, body) {
     if (data.length < 2) continue;
     const hdr = data[0].map(h => String(h).trim());
     const di=hdr.indexOf('Date'), ti=hdr.indexOf('Time'), ai=hdr.indexOf('Amount'), ci=hdr.indexOf('Category');
+    const idi = Math.max(hdr.indexOf('Id'), hdr.indexOf('ID'));
+    // Ensure Id column exists for older sheets
+    if (idi < 0 && hdr.length < TX_HEADERS.length) {
+      sheet.getRange(1, TX_HEADERS.length).setValue('Id');
+    }
     for (let r = 1; r < data.length; r++) {
+      if (id && idi >= 0 && String(data[r][idi] || '').trim() === String(id)) {
+        return { sheet, rowIndex: r + 1, hdrLen: Math.max(hdr.length, TX_HEADERS.length) };
+      }
       const rawDate = data[r][di];
       const rowDate = rawDate instanceof Date
         ? rawDate.getFullYear() + '-' + String(rawDate.getMonth()+1).padStart(2,'0') + '-' + String(rawDate.getDate()).padStart(2,'0')
@@ -401,7 +410,7 @@ function findRow(ss, body) {
         ? String(rawTime.getHours()).padStart(2,'0') + ':' + String(rawTime.getMinutes()).padStart(2,'0')
         : String(rawTime||'').trim().slice(0,5);
       const rowKey = [rowDate, rowTime, Math.round(parseFloat(data[r][ai])||0), data[r][ci]].join('|');
-      if (rowKey === key) return { sheet, rowIndex: r + 1 };
+      if (rowKey === key) return { sheet, rowIndex: r + 1, hdrLen: Math.max(hdr.length, TX_HEADERS.length) };
     }
   }
   return null;
@@ -411,11 +420,14 @@ function updateTransaction(body) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const found = findRow(ss, body);
   if (!found) return jsonResponse({ ok: true, note: 'row not found' });
-  found.sheet.getRange(found.rowIndex, 1, 1, TX_HEADERS.length).setValues([[
+  const cols = Math.max(found.hdrLen || TX_HEADERS.length, TX_HEADERS.length);
+  const row = [
     body['Date'], body['Time'], body['Category'], body['Amount'],
     body['Mode of Payment'], body['Note'], body['Split']||1,
-    body['Paid']||0, body['Location']||'', body['Tags']||''
-  ]]);
+    body['Paid']||0, body['Location']||'', body['Tags']||'', body['Id']||''
+  ];
+  while (row.length < cols) row.push('');
+  found.sheet.getRange(found.rowIndex, 1, 1, cols).setValues([row.slice(0, cols)]);
   return jsonResponse({ ok: true });
 }
 
