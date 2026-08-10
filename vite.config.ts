@@ -6,13 +6,19 @@ import { fileURLToPath } from 'node:url'
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url))
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
+  root: path.resolve(rootDir, 'app'),
   plugins: [react(), tailwindcss()],
-  base: mode === 'production' ? '/vyaya.vg/' : '/',
+  base: '/vyaya.vg/',
   resolve: {
-    alias: { '@': path.resolve(rootDir, './src') },
+    alias: { '@': path.resolve(rootDir, 'app/src') },
   },
+  publicDir: path.resolve(rootDir, 'public'),
   build: {
-    outDir: 'dist',
+    outDir: path.resolve(rootDir, 'dist'),
+    emptyOutDir: true,
   },
-}))
+  server: {
+    // so /vyaya.vg paths aren't required in local if we open /
+  },
+})

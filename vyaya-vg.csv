@@ -1,0 +1,61 @@
+Date,Time,Category,Amount,Mode of Payment,Note,Split,Paid
+,,,,,,,
+2026-06-30,21:14,Food,373.00,UPI,California Burrito,3,1
+2026-06-30,17:21,Bills,699.00,UPI,Hotstar Premium,1,0
+2026-06-30,16:38,Travel & Commute,30.00,UPI,Metro Parking,1,0
+2026-06-29,12:36,Q-Commerce,647.00,Credit Card,BlinkIt,1,0
+2026-06-29,11:12,Travel & Commute,162.00,UPI,Ola Auto,1,0
+2026-06-27,15:28,Travel & Commute,107.00,UPI,Ola Auto,1,0
+2026-06-27,15:22,Travel & Commute,60.00,UPI,Metro Ticket,1,0
+2026-06-26,21:02,Food,791.00,UPI,MCD,1,0
+2026-06-26,20:05,Entertainment,299.00,UPI,Amazon Prime,1,0
+2026-06-26,16:42,Bills,800.00,UPI,Water Bill,1,0
+2026-06-26,5:05,Bills,"1,378.28",Credit Card,Airtel Black,1,0
+2026-06-25,16:05,Travel & Commute,30.00,UPI,Metro Parking,1,0
+2026-06-24,20:14,Q-Commerce,119.00,UPI,Blinkit,1,0
+2026-06-24,20:02,Food,"2,750.00",UPI,Ganache Factory,3,0
+2026-06-23,17:12,Travel & Commute,30.00,UPI,Metro Recharge,1,0
+2026-06-22,20:58,Food,50.00,UPI,Sugarcane,1,0
+2026-06-22,20:10,Food,"6,150.00",UPI,Naru Noodle Bar,3,0
+2026-06-22,13:29,Bills,107.00,UPI,Porter,1,0
+2026-06-21,21:25,Food,"1,521.00",Credit Card,Green Theory,2,0
+2026-06-20,14:37,Q-Commerce,"1,172.00",Credit Card,Blinkit,1,0
+2026-06-20,10:15,Bills,349.00,UPI,Airtel Recharge,1,0
+2026-06-18,20:32,Food,70.00,UPI,Sugarcane,1,0
+2026-06-18,16:05,Travel,30.00,UPI,Metro Parking,1,0
+2026-06-18,15:13,Travel & Commute,510.00,UPI,Meto Recharge,1,0
+2026-06-17,20:57,Food,685.00,UPI,California Buritto,3,1
+2026-06-17,16:44,Travel,200.00,UPI,Fuel,1,0
+2026-06-17,16:15,Travel,30.00,UPI,Metro Parking,1,0
+2026-06-16,16:14,Travel & Commute,30.00,UPI,Metro Parking,1,0
+2026-06-16,15:17,Travel & Commute,260.00,UPI,Metro Card Recharge,1,0
+2026-06-15,21:22,Food,520.00,UPI,California Buritto,3,0
+2026-06-15,18:47,Travel & Commute,300.00,UPI,Fuel,1,0
+2026-06-14,22:16,Food,357.00,UPI,1Shoba Food Court,1,0
+2026-06-14,19:55,Travel & Commute,233.00,UPI,Ola Auto,1,0
+2026-06-13,14:50,Entertainment,"1,290.00",UPI,PVR Food,4,2
+06-12-2026,21:08,Food,172.00,UPI,McD,3,0
+06-12-2026,18:12,Investments,"18,000.00",UPI,INDMoney,1,0
+06-12-2026,16:06,Entertainment,"1,791.28",Credit Card,Disclosure Day,4,2
+06-11-2026,17:19,Travel & Commute,30.00,UPI,Metro Parking,1,0
+06-11-2026,8:16,Bills,990.00,UPI,GasCylinder,1,0
+06-10-2026,20:53,Food,70.00,UPI,Sugarcane Juice,3,0
+06-10-2026,11:40,Bills,219.00,UPI,Recharge - Mom,1,0
+06-09-2026,17:14,Travel & Commute,30.00,UPI,Metro Parking,1,0
+06-09-2026,16:02,Travel & Commute,250.00,UPI,Metro Card Recharge,1,0
+06-08-2026,22:10,Food,100.00,UPI,Juice,2,0
+06-08-2026,14:29,Q-Commerce,775.00,Credit Card,Zepto,1,0
+06-07-2026,21:21,Food,585.90,Credit Card,Theobroma Cake,4,0
+06-07-2026,11:22,Others,699.00,UPI,FanCode Subscription,1,0
+06-05-2026,22:44,Food,70.00,UPI,Juice,2,0
+06-05-2026,22:37,Food,75.00,UPI,Juice,2,0
+06-05-2026,21:04,Food,160.00,UPI,,1,0
+06-05-2026,17:29,Bills,75.00,UPI,Apple Pay,1,0
+06-05-2026,9:30,Bills,500.00,UPI,Unicef Donation,1,0
+06-04-2026,9:30,Travel & Commute,30.00,UPI,Metro Parking,1,0
+06-03-2026,9:30,Travel & Commute,30.00,UPI,Metro Parking,1,0
+06-02-2026,9:30,Travel & Commute,400.00,UPI,Metro Card Recharge,1,0
+06-02-2026,9:30,Travel & Commute,30.00,UPI,Metro Parking,1,0
+06-01-2026,21:30,Food,50.00,UPI,Sugarcane Juice,2,0
+06-01-2026,21:30,Food,924.00,UPI,Kapoors Cafe,1,0
+06-01-2026,20:30,Food,50.00,UPI,Sugarcane Juice,2,0

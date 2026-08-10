@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Sora", sans-serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #07161c;
+  --color-panel: #ffffff;
+  --color-panel-2: #f3f7f8;
+  --color-panel-3: #e7eef0;
+  --color-accent: #0f9f8a;
+  --color-accent-2: #0b7f6e;
+  --color-accent-3: #2dd4bf;
+  --color-foam: #0b1f28;
+  --color-mute: #5b7380;
+  --color-mute-2: #7a929e;
+  --color-good: #059669;
+  --color-bad: #e11d48;
+  --color-info: #0284c7;
+  /* keep gold aliases → accent so class names still resolve */
+  --color-gold: var(--color-accent);
+  --color-gold-2: var(--color-accent-2);
+  --color-gold-3: var(--color-accent-3);
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: #e9f2f4;
+  color: var(--color-foam);
+  overflow-x: hidden;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 90% 55% at 100% -5%, rgba(45, 212, 191, 0.28), transparent 55%),
+    radial-gradient(ellipse 70% 45% at -10% 90%, rgba(14, 165, 233, 0.18), transparent 50%),
+    linear-gradient(165deg, #dcecef 0%, #f4fafb 42%, #e8f3f1 100%);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+@keyframes shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.shimmer-btn {
+  background-image: linear-gradient(
+    110deg,
+    var(--color-accent-2) 0%,
+    var(--color-accent) 35%,
+    var(--color-accent-3) 50%,
+    var(--color-accent) 65%,
+    var(--color-accent-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2.8s linear infinite;
+  color: #042f2e !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-btn { animation: none; }
+  * { scroll-behavior: auto !important; }
+}
