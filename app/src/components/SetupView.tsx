@@ -77,7 +77,11 @@ export function SetupView({
         <ol className="mt-2 list-decimal space-y-1 pl-4 text-xs text-muted">
           <li>Paste the latest script → save</li>
           <li>
-            <strong className="text-fg">One-time:</strong> select <code className="text-[10px]">authorizeVyayaOnce</code> → Run → Allow permissions (needed for AI)
+            <strong className="text-fg">One-time:</strong> run <code className="text-[10px]">authorizeVyayaOnce</code> → Allow
+          </li>
+          <li>
+            <strong className="text-fg">Deploy web app:</strong> Execute as <strong className="text-fg">Me</strong>, access{' '}
+            <strong className="text-fg">Anyone</strong> (not &quot;User accessing&quot; — that breaks AI)
           </li>
           <li>Deploy → New version</li>
         </ol>
@@ -101,6 +105,28 @@ export function SetupView({
           </button>
           <button type="button" className="btn-ghost" onClick={() => void api.pullSettings()}>
             Pull settings
+          </button>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={async () => {
+              const base = url.trim().replace(/\/$/, '')
+              if (!base) {
+                showToast('Paste Apps Script URL first', 'err')
+                return
+              }
+              try {
+                const sep = base.includes('?') ? '&' : '?'
+                const res = await fetch(`${base}${sep}action=pingExternal`)
+                const data = await res.json()
+                if (data.ok) showToast('AI permission OK — try an expense')
+                else showToast(data.fix || data.error || 'Permission failed', 'err')
+              } catch {
+                showToast('Could not reach Apps Script', 'err')
+              }
+            }}
+          >
+            Test AI permission
           </button>
         </div>
       </section>

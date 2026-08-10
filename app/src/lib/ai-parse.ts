@@ -156,7 +156,7 @@ export async function parseExpenseText(text: string): Promise<ParseResult> {
           result: local,
           source: 'local',
           warning: msg.includes('script.external_request') || msg.includes('UrlFetchApp')
-            ? 'Apps Script needs permission: open the script editor, run authorizeVyayaOnce, click Allow, then redeploy.'
+            ? 'Fix Apps Script: Deploy as Execute as ME (not User accessing). Run authorizeVyayaOnce, then New version.'
             : msg.includes('Apps Script')
               ? `${msg}. Redeploy google-apps-script.js with the latest parse action.`
               : `AI unavailable: ${msg}`,

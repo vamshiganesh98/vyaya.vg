@@ -4,10 +4,12 @@
  * SETUP:
  * 1. Open your Google Sheet → Extensions → Apps Script
  * 2. Replace the entire Code.gs contents with this file
- * 3. ONE-TIME: select authorizeVyayaOnce in the toolbar → Run → Allow permissions
- *    (Required for AI parsing — grants external_request to call OpenAI)
- * 4. Deploy → Manage deployments → Edit → New version → Deploy
- *    (Same URL, no need to update the app)
+ * 3. ONE-TIME: select authorizeVyayaOnce → Run → Allow permissions
+ * 4. Deploy → New deployment → Web app:
+ *      Execute as: ME (your account)  ← required for AI from github.io
+ *      Who has access: Anyone
+ * 5. Optional: run saveOpenAIKeyToScript() to store API key in Script Properties
+ *    (then you don't need to paste the key in the vyaya.vg app)
  *
  * SHEET STRUCTURE:
  *   "Jul 2026", "Jun 2026", ...  — one sheet per month, auto-created
@@ -22,6 +24,27 @@ function authorizeVyayaOnce() {
     muteHttpExceptions: true,
   });
   Logger.log('Authorization OK — HTTP ' + res.getResponseCode() + ' (401 expected without a real key)');
+}
+
+/** Optional: run once to save OpenAI key server-side (Extensions → Apps Script → Run). */
+function saveOpenAIKeyToScript() {
+  const ui = SpreadsheetApp.getUi();
+  const r = ui.prompt('Paste your OpenAI API key (sk-…)', 'OpenAI key', ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  const key = String(r.getResponseText() || '').trim();
+  if (!key) return;
+  PropertiesService.getScriptProperties().setProperty('OPENAI_API_KEY', key);
+  ui.alert('OpenAI key saved in Script Properties. You can remove it from the vyaya.vg app Setup.');
+}
+
+/** Test UrlFetchApp from browser: YOUR_URL?action=pingExternal */
+function pingExternal_() {
+  const res = UrlFetchApp.fetch('https://api.openai.com/v1/models', {
+    method: 'get',
+    headers: { Authorization: 'Bearer test' },
+    muteHttpExceptions: true,
+  });
+  return { ok: true, http: res.getResponseCode(), hint: 'UrlFetchApp works. HTTP 401 is expected.' };
 }
 
 const SETTINGS_SHEET = 'Settings';
@@ -114,6 +137,17 @@ function genIdGas() {
 
 function doGet(e) {
   const action = (e.parameter && e.parameter.action) || 'read';
+  if (action === 'pingExternal') {
+    try {
+      return jsonResponse(pingExternal_());
+    } catch (err) {
+      return jsonResponse({
+        ok: false,
+        error: String(err),
+        fix: 'Run authorizeVyayaOnce in the editor, then redeploy web app as Execute as: Me',
+      });
+    }
+  }
   setupSheets();
   if (action === 'readSettings') return readSettings();
   return readAllTransactions();
@@ -381,9 +415,11 @@ function doPost(e) {
 
 function parseExpenseAI(body) {
   const text = String(body.text || '').trim();
-  const apiKey = String(body.apiKey || '').trim();
+  const apiKey = String(body.apiKey || '').trim()
+    || PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY')
+    || '';
   if (!text) return jsonResponse({ error: 'Missing text' });
-  if (!apiKey) return jsonResponse({ error: 'Missing apiKey' });
+  if (!apiKey) return jsonResponse({ error: 'Missing apiKey — add in vyaya.vg Setup or run saveOpenAIKeyToScript()' });
 
   const tz = 'Asia/Kolkata';
   const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
