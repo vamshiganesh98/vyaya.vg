@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
-import { getOpenAIKey, setOpenAIKey } from '@/lib/ai-parse'
+import { getGeminiKey, setGeminiKey } from '@/lib/ai-parse'
 import { parseCSV } from '@/lib/csv'
 import type { UseExpensesReturn } from '@/hooks/useExpenses'
 
@@ -13,13 +13,13 @@ export function SetupView({
   api: UseExpensesReturn
   showToast: (msg: string, type?: string) => void
 }) {
-  const [apiKey, setApiKey] = useState(getOpenAIKey())
+  const [apiKey, setApiKey] = useState(getGeminiKey())
   const [showKey, setShowKey] = useState(false)
   const [url, setUrl] = useState(api.sheetUrl)
 
   const saveKey = () => {
-    setOpenAIKey(apiKey)
-    showToast(apiKey ? 'OpenAI key saved' : 'OpenAI key removed')
+    setGeminiKey(apiKey)
+    showToast(apiKey ? 'Gemini key saved' : 'Gemini key removed')
   }
 
   return (
@@ -31,23 +31,31 @@ export function SetupView({
           Expenses save locally, then sync to Google Sheets via Apps Script.
         </p>
         <ol className="mt-3 list-decimal space-y-2 pl-4 text-xs text-muted">
-          <li>Add OpenAI key below (optional, for smart parsing)</li>
+          <li>Add a free Gemini API key below (optional, for smart parsing)</li>
           <li>Paste your Apps Script URL under Google Sheets</li>
           <li>Set up the iPhone Shortcut (Back Tap → type expense → open URL)</li>
         </ol>
       </section>
 
       <section className="card p-5">
-        <h2 className="text-sm font-semibold">1. AI parsing</h2>
+        <h2 className="text-sm font-semibold">1. AI parsing (Gemini)</h2>
         <p className="mt-1 text-xs text-muted">
-          OpenAI key for plain English like &quot;spent ₹50 at Starbucks&quot;. Stored only on this device.
+          Free Google Gemini key for plain English like &quot;spent ₹50 at Starbucks&quot;. Stored only on this device.{' '}
+          <a
+            href="https://aistudio.google.com/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent underline"
+          >
+            Get a free key
+          </a>
         </p>
         <div className="relative mt-3">
           <input
             type={showKey ? 'text' : 'password'}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-…"
+            placeholder="AIza…"
             className="w-full rounded-2xl border border-line bg-canvas py-2.5 pl-4 pr-10 text-sm outline-none"
             autoComplete="off"
           />
@@ -64,7 +72,7 @@ export function SetupView({
           Save API key
         </button>
         <p className="mt-2 text-[11px] text-muted">
-          Requires your Apps Script URL (step 2) — github.io cannot call OpenAI directly. After updating{' '}
+          Requires your Apps Script URL (step 2) — github.io cannot call Gemini directly. After updating{' '}
           <code className="text-[10px]">google-apps-script.js</code>, redeploy a new version in Apps Script.
         </p>
       </section>

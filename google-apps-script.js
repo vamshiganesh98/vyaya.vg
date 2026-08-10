@@ -8,7 +8,7 @@
  * 4. Deploy → New deployment → Web app:
  *      Execute as: ME (your account)  ← required for AI from github.io
  *      Who has access: Anyone
- * 5. Optional: run saveOpenAIKeyToScript() to store API key in Script Properties
+ * 5. Optional: run saveGeminiKeyToScript() to store Gemini API key in Script Properties
  *    (then you don't need to paste the key in the vyaya.vg app)
  *
  * SHEET STRUCTURE:
@@ -16,35 +16,37 @@
  *   "Settings"                   — four visual tables: Budget, Cat Budgets, Goals, Recurring
  */
 
-/** Run once from the Apps Script editor (▶ Run) to grant UrlFetchApp / OpenAI access. */
+/** Run once from the Apps Script editor (▶ Run) to grant UrlFetchApp / Gemini access. */
 function authorizeVyayaOnce() {
-  const res = UrlFetchApp.fetch('https://api.openai.com/v1/models', {
-    method: 'get',
-    headers: { Authorization: 'Bearer test' },
-    muteHttpExceptions: true,
-  });
-  Logger.log('Authorization OK — HTTP ' + res.getResponseCode() + ' (401 expected without a real key)');
+  const res = UrlFetchApp.fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models?key=test',
+    { method: 'get', muteHttpExceptions: true }
+  );
+  Logger.log('Authorization OK — HTTP ' + res.getResponseCode() + ' (400 expected without a real key)');
 }
 
-/** Optional: run once to save OpenAI key server-side (Extensions → Apps Script → Run). */
-function saveOpenAIKeyToScript() {
+/** Optional: run once to save Gemini key server-side (Extensions → Apps Script → Run). */
+function saveGeminiKeyToScript() {
   const ui = SpreadsheetApp.getUi();
-  const r = ui.prompt('Paste your OpenAI API key (sk-…)', 'OpenAI key', ui.ButtonSet.OK_CANCEL);
+  const r = ui.prompt(
+    'Paste your Gemini API key (AIza…)\nGet one free: aistudio.google.com/apikey',
+    'Gemini API key',
+    ui.ButtonSet.OK_CANCEL
+  );
   if (r.getSelectedButton() !== ui.Button.OK) return;
   const key = String(r.getResponseText() || '').trim();
   if (!key) return;
-  PropertiesService.getScriptProperties().setProperty('OPENAI_API_KEY', key);
-  ui.alert('OpenAI key saved in Script Properties. You can remove it from the vyaya.vg app Setup.');
+  PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', key);
+  ui.alert('Gemini key saved in Script Properties. You can remove it from the vyaya.vg app Setup.');
 }
 
 /** Test UrlFetchApp from browser: YOUR_URL?action=pingExternal */
 function pingExternal_() {
-  const res = UrlFetchApp.fetch('https://api.openai.com/v1/models', {
-    method: 'get',
-    headers: { Authorization: 'Bearer test' },
-    muteHttpExceptions: true,
-  });
-  return { ok: true, http: res.getResponseCode(), hint: 'UrlFetchApp works. HTTP 401 is expected.' };
+  const res = UrlFetchApp.fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models?key=test',
+    { method: 'get', muteHttpExceptions: true }
+  );
+  return { ok: true, http: res.getResponseCode(), hint: 'UrlFetchApp works. HTTP 400 is expected without a real key.' };
 }
 
 const SETTINGS_SHEET = 'Settings';
@@ -411,48 +413,52 @@ function doPost(e) {
   return jsonResponse({ error: 'Unknown action: ' + body.action });
 }
 
-// ── AI parse (OpenAI proxy — avoids browser CORS on github.io) ──
+// ── AI parse (Gemini proxy — avoids browser CORS on github.io) ──
 
 function parseExpenseAI(body) {
   const text = String(body.text || '').trim();
   const apiKey = String(body.apiKey || '').trim()
-    || PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY')
+    || PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY')
     || '';
   if (!text) return jsonResponse({ error: 'Missing text' });
-  if (!apiKey) return jsonResponse({ error: 'Missing apiKey — add in vyaya.vg Setup or run saveOpenAIKeyToScript()' });
+  if (!apiKey) {
+    return jsonResponse({
+      error: 'Missing apiKey — add Gemini key in vyaya.vg Setup or run saveGeminiKeyToScript()'
+    });
+  }
 
   const tz = 'Asia/Kolkata';
   const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
   const cats = 'Food, Travel & Commute, Bills, Q-Commerce, Entertainment, Investments, Shopping, Others';
+  const systemText = 'You parse Indian personal expense sentences into JSON. Today is ' + today
+    + ' (IST). Categories: ' + cats
+    + '. Payment: UPI or Credit Card. Return only JSON with keys: amount (number INR), category, note (short merchant/description), payment, date (YYYY-MM-DD), location (optional), tags (string array), recurring (boolean), split (integer 1-10). Infer category from context.';
 
   const payload = {
-    model: 'gpt-4o-mini',
-    temperature: 0.1,
-    response_format: { type: 'json_object' },
-    messages: [
-      {
-        role: 'system',
-        content: 'You parse Indian personal expense sentences into JSON. Today is ' + today + ' (IST). Categories: ' + cats + '. Payment: UPI or Credit Card. Return only JSON with keys: amount (number INR), category, note (short merchant/description), payment, date (YYYY-MM-DD), location (optional), tags (string array), recurring (boolean), split (integer 1-10). Infer category from context.'
-      },
-      { role: 'user', content: text }
-    ]
+    systemInstruction: { parts: [{ text: systemText }] },
+    contents: [{ parts: [{ text: text }] }],
+    generationConfig: { temperature: 0.1, responseMimeType: 'application/json' }
   };
 
+  const geminiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='
+    + encodeURIComponent(apiKey);
+
   try {
-    const res = UrlFetchApp.fetch('https://api.openai.com/v1/chat/completions', {
+    const res = UrlFetchApp.fetch(geminiUrl, {
       method: 'post',
       contentType: 'application/json',
-      headers: { Authorization: 'Bearer ' + apiKey },
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
     });
     const code = res.getResponseCode();
     const data = JSON.parse(res.getContentText());
     if (code !== 200) {
-      const msg = (data.error && data.error.message) ? data.error.message : 'OpenAI request failed';
+      const msg = (data.error && data.error.message) ? data.error.message : 'Gemini request failed';
       return jsonResponse({ error: msg });
     }
-    const raw = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    const parts = data.candidates && data.candidates[0] && data.candidates[0].content
+      && data.candidates[0].content.parts;
+    const raw = parts && parts[0] && parts[0].text;
     if (!raw) return jsonResponse({ error: 'Empty AI response' });
     const parsed = JSON.parse(raw);
     return jsonResponse({ result: parsed, source: 'ai' });
