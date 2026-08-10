@@ -204,6 +204,7 @@ export default function App() {
         onClick={() => {
           setQuickText('')
           setQuickAuto(false)
+          setQuickSave(false)
           setQuickOpen(true)
         }}
         className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-fg text-canvas shadow-lg active:scale-95"
