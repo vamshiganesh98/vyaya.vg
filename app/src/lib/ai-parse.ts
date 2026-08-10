@@ -15,8 +15,12 @@ export type ParsedExpense = {
   currency: string
 }
 
-const CATEGORIES =
-  'Food, Travel & Commute, Bills, Q-Commerce, Entertainment, Investments, Shopping, Others'
+export type ParseResult = {
+  result: ParsedExpense
+  source: 'ai' | 'local'
+  warning?: string
+}
+
 
 export function getOpenAIKey(): string {
   return localStorage.getItem('vyaya_openai_key') || ''
@@ -26,6 +30,10 @@ export function setOpenAIKey(key: string) {
   const trimmed = key.trim()
   if (trimmed) localStorage.setItem('vyaya_openai_key', trimmed)
   else localStorage.removeItem('vyaya_openai_key')
+}
+
+function getSheetUrl(): string {
+  return localStorage.getItem('vyaya_url') || ''
 }
 
 function parseDateFromText(text: string): string {
@@ -72,6 +80,24 @@ function cleanNote(text: string, amount: number): string {
   return note.slice(0, 120)
 }
 
+function mapAiJson(parsed: Record<string, unknown>, text: string): ParsedExpense | null {
+  const amount = parseFloat(String(parsed.amount || 0))
+  if (!amount || amount <= 0) return null
+  return {
+    amount,
+    category: normCat(String(parsed.category || 'Others')),
+    note: String(parsed.note || '').trim() || cleanNote(text, amount),
+    payment: String(parsed.payment).toLowerCase().includes('credit') ? 'Credit Card' : 'UPI',
+    date: String(parsed.date || today()).slice(0, 10),
+    time: nowTime(),
+    location: String(parsed.location || '').trim(),
+    tags: Array.isArray(parsed.tags) ? parsed.tags.map(String) : parseTags(text),
+    recurring: Boolean(parsed.recurring),
+    split: Math.min(10, Math.max(1, parseInt(String(parsed.split || '1'), 10) || 1)),
+    currency: 'INR',
+  }
+}
+
 export function parseExpenseLocal(text: string): ParsedExpense | null {
   const trimmed = text.trim()
   if (!trimmed) return null
@@ -98,67 +124,42 @@ export function parseExpenseLocal(text: string): ParsedExpense | null {
   }
 }
 
-async function parseExpenseOpenAI(text: string, apiKey: string): Promise<ParsedExpense | null> {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+/** Route OpenAI via Apps Script — browsers on github.io cannot call api.openai.com directly (CORS). */
+async function parseExpenseViaAppsScript(text: string, apiKey: string): Promise<ParsedExpense | null> {
+  const sheetUrl = getSheetUrl()
+  if (!sheetUrl) throw new Error('Add your Apps Script URL in Setup → Google Sheets sync')
+
+  const res = await fetch(sheetUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      temperature: 0.1,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: `You parse Indian personal expense sentences into JSON. Today is ${today()} (IST). Categories: ${CATEGORIES}. Payment: UPI or Credit Card. Return only JSON with keys: amount (number INR), category, note (short merchant/description), payment, date (YYYY-MM-DD), location (optional), tags (string array), recurring (boolean), split (integer 1-10). Infer category from context (e.g. Starbucks→Food, metro parking→Travel & Commute, Apple Care→Bills).`,
-        },
-        { role: 'user', content: text },
-      ],
-    }),
+    body: JSON.stringify({ action: 'parse', text, apiKey }),
   })
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(err.includes('invalid_api_key') ? 'Invalid OpenAI API key' : 'AI request failed')
-  }
-
   const data = await res.json()
-  const raw = data.choices?.[0]?.message?.content
-  if (!raw) return null
-
-  const parsed = JSON.parse(raw) as Record<string, unknown>
-  const amount = parseFloat(String(parsed.amount || 0))
-  if (!amount || amount <= 0) return null
-
-  return {
-    amount,
-    category: normCat(String(parsed.category || 'Others')),
-    note: String(parsed.note || '').trim() || cleanNote(text, amount),
-    payment: String(parsed.payment).toLowerCase().includes('credit') ? 'Credit Card' : 'UPI',
-    date: String(parsed.date || today()).slice(0, 10),
-    time: nowTime(),
-    location: String(parsed.location || '').trim(),
-    tags: Array.isArray(parsed.tags) ? parsed.tags.map(String) : parseTags(text),
-    recurring: Boolean(parsed.recurring),
-    split: Math.min(10, Math.max(1, parseInt(String(parsed.split || '1'), 10) || 1)),
-    currency: 'INR',
-  }
+  if (data.error) throw new Error(String(data.error))
+  if (!data.result) return null
+  return mapAiJson(data.result as Record<string, unknown>, text)
 }
 
-export async function parseExpenseText(text: string): Promise<{ result: ParsedExpense; source: 'ai' | 'local' }> {
+export async function parseExpenseText(text: string): Promise<ParseResult> {
   const trimmed = text.trim()
   if (!trimmed) throw new Error('Enter an expense')
 
   const apiKey = getOpenAIKey()
   if (apiKey) {
     try {
-      const ai = await parseExpenseOpenAI(trimmed, apiKey)
+      const ai = await parseExpenseViaAppsScript(trimmed, apiKey)
       if (ai) return { result: ai, source: 'ai' }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : 'AI failed'
       const local = parseExpenseLocal(trimmed)
-      if (local) return { result: local, source: 'local' }
+      if (local) {
+        return {
+          result: local,
+          source: 'local',
+          warning: msg.includes('Apps Script')
+            ? `${msg}. Redeploy google-apps-script.js with the latest parse action.`
+            : `AI unavailable: ${msg}`,
+        }
+      }
       throw e
     }
   }

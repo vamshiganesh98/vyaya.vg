@@ -34,6 +34,7 @@ export function QuickAdd({
   const [phase, setPhase] = useState<Phase>('input')
   const [parsed, setParsed] = useState<ParsedExpense | null>(null)
   const [source, setSource] = useState<'ai' | 'local'>('local')
+  const [warning, setWarning] = useState('')
   const [error, setError] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const autoRan = useRef(false)
@@ -43,6 +44,7 @@ export function QuickAdd({
       setPhase('input')
       setParsed(null)
       setError('')
+      setWarning('')
       autoRan.current = false
       return
     }
@@ -59,7 +61,7 @@ export function QuickAdd({
     setError('')
     setPhase('parsing')
     try {
-      const { result, source: src } = await parseExpenseText(raw)
+      const { result, source: src, warning: warn } = await parseExpenseText(raw)
       if (saveImmediately) {
         setPhase('saving')
         await onSave(parsedToTxnPayload(result))
@@ -69,6 +71,7 @@ export function QuickAdd({
       }
       setParsed(result)
       setSource(src)
+      setWarning(warn || '')
       setPhase('preview')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Parse failed')
@@ -210,12 +213,27 @@ export function QuickAdd({
 
               <div
                 className={cn(
-                  'flex items-center gap-2 rounded-xl px-3 py-2 text-xs',
-                  source === 'ai' ? 'bg-accent/10 text-accent' : 'bg-black/5 text-muted',
+                  'rounded-xl px-3 py-2 text-xs',
+                  source === 'ai'
+                    ? 'flex items-center gap-2 bg-accent/10 text-accent'
+                    : warning
+                      ? 'parse-warn-banner'
+                      : 'flex items-center gap-2 bg-black/5 text-muted',
                 )}
               >
-                <Sparkles className="h-3.5 w-3.5" />
-                {source === 'ai' ? 'Parsed with AI' : 'Parsed locally — add OpenAI key in Setup for smarter parsing'}
+                {source === 'ai' ? (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Parsed with AI
+                  </>
+                ) : warning ? (
+                  warning
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Parsed locally — add OpenAI key in Setup for smarter parsing
+                  </>
+                )}
               </div>
 
               {error && <p className="text-sm text-bad">{error}</p>}
